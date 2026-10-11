@@ -35,9 +35,24 @@ public final class UltimaGame extends ApplicationAdapter {
   private Avatar selectedAvatar;
   private LordBritishSignature signature;
   private TitleScene titleScene;
+  private CreationStory creationStory;
+  private static final List<String> FRONT_NAMES =
+      List.of(
+          "TITLE",
+          "GYPSY",
+          "WAGON",
+          "TREE",
+          "PORTAL",
+          "OUTSIDE",
+          "INSIDE",
+          "ABACUS",
+          "HONCOM",
+          "VALJUS",
+          "SACHONOR",
+          "SPIRHUM");
   private double titleSceneSeconds;
   private Texture penPixel;
-  private final Texture[] frontPictures = new Texture[3];
+  private final Texture[] frontPictures = new Texture[FRONT_NAMES.size()];
   private GameSession world;
   private String directionAction;
   private char directionCharacter;
@@ -85,6 +100,7 @@ public final class UltimaGame extends ApplicationAdapter {
     restart();
     try {
       titleScene = TitleScene.load();
+      creationStory = CreationStory.load();
     } catch (IOException ex) {
       throw new IllegalStateException("Cannot load title demonstration", ex);
     }
@@ -276,7 +292,7 @@ public final class UltimaGame extends ApplicationAdapter {
         if (key == Input.Keys.ESCAPE) {
           Gdx.app.exit();
         } else if (key == Input.Keys.B || key == Input.Keys.N || key == Input.Keys.ENTER) {
-          screens.start();
+          restart();
         } else if (key == Input.Keys.J || key == Input.Keys.L || key == Input.Keys.F9) {
           loadQuest();
         } else if (key == Input.Keys.R) {
@@ -294,8 +310,14 @@ public final class UltimaGame extends ApplicationAdapter {
           screens.title();
         } else if (key == Input.Keys.R) {
           restart();
-        } else if (key == Input.Keys.A || key == Input.Keys.B) {
-          screens.choose(key == Input.Keys.A ? 0 : 1);
+        } else if (creationStory.phase() == CreationStory.Phase.INTRODUCTION
+            && (key == Input.Keys.ENTER || key == Input.Keys.SPACE)) {
+          creationStory.advance();
+        } else if (creationStory.phase() == CreationStory.Phase.QUESTIONS
+            && (key == Input.Keys.A || key == Input.Keys.B)) {
+          screens.choose(
+              creationStory.question(screens.creation()).option(key == Input.Keys.A ? 0 : 1));
+          creationStory.choiceFinished(screens.creation().complete());
           if (screens.stage() == CharacterScreens.Stage.SELECTION) {
             try {
               selectedAvatar = Avatar.from(screens.creation());
@@ -312,7 +334,10 @@ public final class UltimaGame extends ApplicationAdapter {
           screens.title();
         } else if (key == Input.Keys.R || key == Input.Keys.BACKSPACE) {
           restart();
-        } else if (key == Input.Keys.ENTER) {
+        } else if (creationStory.phase() == CreationStory.Phase.CONCLUSION
+            && (key == Input.Keys.ENTER || key == Input.Keys.SPACE)) {
+          creationStory.advance();
+        } else if (creationStory.phase() == CreationStory.Phase.READY && key == Input.Keys.ENTER) {
           try {
             world = GameSession.start(data, screens.creation());
           } catch (IOException ex) {
@@ -344,13 +369,13 @@ public final class UltimaGame extends ApplicationAdapter {
     } finally {
       pen.dispose();
     }
-    String[] names = {"TITLE", "GYPSY", "WAGON"};
-    for (int i = 0; i < names.length; i++) {
+    List<String> names = FRONT_NAMES;
+    for (int i = 0; i < names.size(); i++) {
       EgaPicture picture;
       try {
-        picture = EgaPicture.load(names[i]);
+        picture = EgaPicture.load(names.get(i));
       } catch (IOException ex) {
-        throw new IllegalStateException("Cannot load " + names[i] + " background", ex);
+        throw new IllegalStateException("Cannot load " + names.get(i) + " background", ex);
       }
       Pixmap pixels = new Pixmap(EgaPicture.WIDTH, EgaPicture.HEIGHT, Pixmap.Format.RGBA8888);
       try {
@@ -377,15 +402,22 @@ public final class UltimaGame extends ApplicationAdapter {
       renderTitle();
       return;
     }
-    int background = stage == CharacterScreens.Stage.CREATION ? 1 : 2;
     batch.setColor(Color.WHITE);
-    batch.draw(frontPictures[background], 20, 100, 960, 600);
-    font.setColor(Color.GOLD);
-    switch (stage) {
-      case TITLE -> renderTitle();
-      case CREATION -> renderCharacterChoices();
-      case SELECTION -> renderSelectedCharacter();
-      default -> throw new IllegalStateException("Unexpected front screen: " + stage);
+    if (creationStory.phase() == CreationStory.Phase.INTRODUCTION
+        || creationStory.phase() == CreationStory.Phase.CONCLUSION) {
+      Texture picture = frontPictures[FRONT_NAMES.indexOf(creationStory.picture())];
+      batch.draw(new TextureRegion(picture, 0, 0, 320, 140), 20, 280, 960, 420);
+      font.setColor(Color.WHITE);
+      font.draw(batch, creationStory.text(), 50, 250, 900, -1, true);
+      text("Enter / Space continue | R start over | Esc title", 24, 35);
+    } else if (stage == CharacterScreens.Stage.CREATION) {
+      renderCharacterChoices();
+    } else if (stage == CharacterScreens.Stage.SELECTION) {
+      batch.draw(new TextureRegion(frontPictures[2], 0, 0, 320, 140), 20, 280, 960, 420);
+      font.setColor(Color.GOLD);
+      renderSelectedCharacter();
+    } else {
+      throw new IllegalStateException("Unexpected front screen: " + stage);
     }
   }
 
@@ -421,21 +453,24 @@ public final class UltimaGame extends ApplicationAdapter {
 
   private void renderCharacterChoices() {
     CharacterCreation creation = screens.creation();
-    text("The Gypsy asks / Choice " + (creation.choices() + 1) + " of 7", 50, 235);
+    CreationStory.Question cards = creationStory.question(creation);
+    batch.draw(new TextureRegion(frontPictures[7], 0, 0, 320, 150), 20, 250, 960, 450);
+    drawVirtueCard(cards.first(), 62);
+    drawVirtueCard(cards.second(), 678);
+    font.setColor(Color.GOLD);
+    text("A", 165, 286);
+    text("B", 780, 286);
+    text("Choice " + (creation.choices() + 1) + " of 7", 415, 685);
     font.setColor(Color.WHITE);
-    text("A: " + creation.option(0), 50, 195);
-    text("B: " + creation.option(1), 510, 195);
-    text(
-        "STR "
-            + creation.strength()
-            + "   DEX "
-            + creation.dexterity()
-            + "   INT "
-            + creation.intelligence(),
-        50,
-        155);
-    text("Which virtue guides thy heart?", 510, 155);
-    text("A/B choose | R start over | Esc title", 24, 50);
+    font.draw(batch, cards.text(), 50, 240, 900, -1, true);
+    text("A/B choose | R start over | Esc title", 24, 35);
+  }
+
+  private void drawVirtueCard(Virtue virtue, float x) {
+    Texture picture = frontPictures[8 + virtue.ordinal() / 2];
+    TextureRegion card =
+        new TextureRegion(picture, virtue.ordinal() % 2 == 0 ? 14 : 219, 14, 88, 121);
+    batch.draw(card, x, 315, 264, 363);
   }
 
   private void renderSelectedCharacter() {
@@ -528,6 +563,7 @@ public final class UltimaGame extends ApplicationAdapter {
       screens = new CharacterScreens(new Random());
     }
     screens.start();
+    if (creationStory != null) creationStory.start();
     world = null;
     selectedAvatar = null;
     directionAction = null;
