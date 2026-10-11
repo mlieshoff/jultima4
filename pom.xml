@@ -11,7 +11,7 @@
   <build>
     <resources><resource><directory>DECOMPILED/assets/game</directory><includes><include>01_SHP.png</include></includes><targetPath>tiles</targetPath></resource>
       <resource><directory>COMPILED</directory><targetPath>dos</targetPath><includes>
-        <include>WORLD.MAP</include><include>SHAPES.EGA</include><include>*.ULT</include><include>*.TLK</include><include>*.CON</include><include>PARTY.NEW</include><include>TITLE.EGA</include><include>GYPSY.EGA</include><include>WAGON.EGA</include>
+        <include>WORLD.MAP</include><include>SHAPES.EGA</include><include>*.ULT</include><include>*.TLK</include><include>*.CON</include><include>PARTY.NEW</include><include>TITLE.EGA</include><include>TITLE.EXE</include><include>GYPSY.EGA</include><include>WAGON.EGA</include>
       </includes></resource>
     </resources>
     <plugins>

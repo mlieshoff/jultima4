@@ -19,6 +19,9 @@ mvn dependency:copy-dependencies
 java -XstartOnFirstThread -cp 'target/classes:target/dependency/*' org.jultima4.DesktopLauncher
 ```
 
+Startup draws Lord British's original signature, then reveals the Origin Systems
+lettering before the title. Enter or Space advances the current intro screen;
+Escape skips to the title. Press I on the title to replay the introduction.
 On the title screen, press N or Enter to begin a new quest.
 Choose A or B for seven virtue pairs. Your final virtue determines your class
 and starting position in Britannia. Prompts still use virtue names rather than
@@ -28,6 +31,8 @@ character creation again, and Escape returns to the title.
 
 | Control | Action |
 | --- | --- |
+| Enter / Space during intro | Advance to the next intro screen |
+| I on title | Replay the signature and Origin introduction |
 | N / Enter on title | Start character creation |
 | A / B during creation | Choose a virtue |
 | Enter on class selection | Confirm character and begin the quest |
@@ -54,6 +59,8 @@ near their respective towns, matching the decompiled starting-coordinate table.
 
 ## Implemented data and behavior
 
+* Animated Lord British signature using the ordered stroke table in `TITLE.EXE`,
+  followed by an Origin Systems screen using lettering from `TITLE.EGA`.
 * Original DOS `TITLE.EGA`, `GYPSY.EGA`, and `WAGON.EGA` backgrounds for the
   title, character creation, and class confirmation screens, with nearest-neighbor
   scaling. Their fixed 12-bit hashed LZW data is decoded directly in Java.
@@ -87,7 +94,8 @@ near their respective towns, matching the decompiled starting-coordinate table.
   points per choice.
 
 Maven packages the world map, EGA shapes, town maps, dialogue, combat maps, and
-new-party template and the three front-screen backgrounds as classpath resources. The supplied `COMPILED` folder is retained in Git as requested.
+new-party template and the three front-screen backgrounds as classpath resources.
+`TITLE.EXE` is also packaged solely to read its signature table; it is never executed. The supplied `COMPILED` folder is retained in Git as requested.
 The DOS executables, drivers, documents, dungeon data, and saves remain
 in the source folder; they are not executed or altered by the Java game.
 Existing save files are not loaded; `PARTY.NEW` supplies only initial character
@@ -160,11 +168,16 @@ continues outside sight; sight does not change the existing enemy AI.
   and [hash definitions](https://github.com/xu4-engine/u4/blob/master/src/lzw/hash.c)
   supplies format evidence for the new Java reader. This increment does not
   recreate the complete animated introduction or original dilemma text.
+* [XU4 intro data layout](https://github.com/xu4-engine/u4/blob/master/src/intro.cpp)
+  identifies the 533-byte signature table at offset 29806 in `TITLE.EXE`,
+  its coordinate encoding, and the Origin lettering rectangle. The desktop
+  version presents these as two standalone screens with its own timing.
 
 Picture tests cover literal/dictionary decoding, new-word references, collision
 probing, malformed/truncated streams, size bounds, and actual picture loading.
 Screen-flow tests cover title navigation, seven virtue choices, class confirmation,
-restart, and invalid actions.
+restart, and invalid actions. Intro tests verify automatic/manual progression,
+skipping/replay, timing, and the original signature's 266 bounded stroke points.
 Visibility tests cover opaque terrain, all ray directions, shallow/steep rays,
 ray symmetry, diagonal corners, door opening, NPC occlusion, world-edge wrapping,
 viewport bounds, combat visibility, and ranged attacks blocked by forests.

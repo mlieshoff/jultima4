@@ -29,6 +29,8 @@ public final class UltimaGame extends ApplicationAdapter {
     private DosGameData data;
     private CharacterScreens screens;
     private Avatar selectedAvatar;
+    private LordBritishSignature signature;
+    private Texture penPixel;
     private final Texture[] frontPictures = new Texture[3];
     private GameSession world;
     private String directionAction;
@@ -61,7 +63,7 @@ public final class UltimaGame extends ApplicationAdapter {
         createScrollingTiles();
         createFrontPictures();
         restart();
-        screens.title();
+        screens.intro();
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) { return handleKey(key); }
             @Override public boolean keyTyped(char character) {
@@ -142,9 +144,15 @@ public final class UltimaGame extends ApplicationAdapter {
 
     private boolean handleFrontKey(int key) {
         switch (screens.stage()) {
+            case SIGNATURE, ORIGIN -> {
+                if (key == Input.Keys.ESCAPE) screens.title();
+                else if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) screens.advanceIntro();
+                else return false;
+            }
             case TITLE -> {
                 if (key == Input.Keys.ESCAPE) Gdx.app.exit();
                 else if (key == Input.Keys.N || key == Input.Keys.ENTER) screens.start();
+                else if (key == Input.Keys.I) screens.intro();
                 else return false;
             }
             case CREATION -> {
@@ -174,6 +182,11 @@ public final class UltimaGame extends ApplicationAdapter {
     }
 
     private void createFrontPictures() {
+        try { signature = LordBritishSignature.load(); }
+        catch (IOException ex) { throw new IllegalStateException("Cannot load Lord British signature", ex); }
+        Pixmap pen = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        try { pen.setColor(Color.WHITE); pen.fill(); penPixel = new Texture(pen); }
+        finally { pen.dispose(); }
         String[] names = {"TITLE", "GYPSY", "WAGON"};
         for (int i = 0; i < names.length; i++) {
             EgaPicture picture;
@@ -192,6 +205,10 @@ public final class UltimaGame extends ApplicationAdapter {
 
     private void renderFront() {
         CharacterScreens.Stage stage = screens.stage();
+        if (stage == CharacterScreens.Stage.SIGNATURE || stage == CharacterScreens.Stage.ORIGIN) {
+            renderIntro(stage);
+            return;
+        }
         int background = stage == CharacterScreens.Stage.TITLE ? 0 : stage == CharacterScreens.Stage.CREATION ? 1 : 2;
         batch.setColor(Color.WHITE);
         batch.draw(frontPictures[background], 20, 100, 960, 600);
@@ -201,7 +218,7 @@ public final class UltimaGame extends ApplicationAdapter {
             font.setColor(Color.WHITE);
             font.draw(batch, "N / Enter - Create a character", 44, 295, 912, 1, false);
             font.draw(batch, "Esc - Quit", 44, 240, 912, 1, false);
-            text("Ultima IV / Quest of the Avatar", 24, 50);
+            text("I replay introduction | N / Enter new quest | Esc quit", 24, 50);
         } else if (stage == CharacterScreens.Stage.CREATION) {
             CharacterCreation creation = screens.creation();
             text("The Gypsy asks / Choice " + (creation.choices() + 1) + " of 7", 50, 235);
@@ -223,6 +240,28 @@ public final class UltimaGame extends ApplicationAdapter {
             drawTile(31, 880, 158, 64);
             text("Enter begin quest | R / Backspace choose again | Esc title", 24, 50);
         }
+    }
+
+    private void renderIntro(CharacterScreens.Stage stage) {
+        batch.setColor(Color.WHITE);
+        font.setColor(Color.WHITE);
+        if (stage == CharacterScreens.Stage.SIGNATURE) {
+            int count = (int) (signature.points().size() * Math.min(1, screens.elapsed() / 3));
+            batch.setColor(Color.CYAN);
+            for (int i = 0; i < count; i++) {
+                LordBritishSignature.Point point = signature.points().get(i);
+                batch.draw(penPixel, 238 + point.x() * 4, 390 - point.y() * 4, 8, 4);
+            }
+            batch.setColor(Color.WHITE);
+        } else {
+            int rows = Math.min(9, (int) (screens.elapsed() / 0.8 * 9));
+            if (rows > 0) {
+                TextureRegion lettering = new TextureRegion(frontPictures[0], 86, 21 + 9 - rows, 148, rows);
+                batch.draw(lettering, 204, 360, 592, rows * 4);
+            }
+            font.draw(batch, "presents", 0, 310, 1000, 1, false);
+        }
+        text("Enter / Space next | Esc title", 24, 50);
     }
 
     private boolean handleCombatKey(int key) {
@@ -276,6 +315,7 @@ public final class UltimaGame extends ApplicationAdapter {
     @Override public void render() {
         float delta = Math.max(0, Gdx.graphics.getDeltaTime());
         animationSeconds += delta;
+        screens.update(delta);
         combatAnimation.update(delta);
         ScreenUtils.clear(0.025f, 0.035f, 0.055f, 1);
         viewport.apply();
@@ -449,6 +489,7 @@ public final class UltimaGame extends ApplicationAdapter {
         if (font != null) font.dispose();
         if (sheet != null) sheet.dispose();
         if (scrollingSheet != null) scrollingSheet.dispose();
+        if (penPixel != null) penPixel.dispose();
         for (Texture picture : frontPictures) if (picture != null) picture.dispose();
     }
 }
