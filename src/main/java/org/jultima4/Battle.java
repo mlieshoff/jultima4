@@ -96,7 +96,7 @@ public final class Battle {
                 }
                 break;
             }
-            if (!DosMap.walkable(map.tile(targetX, targetY))) { message = "Attack blocked by terrain."; break; }
+            if (LineOfSight.opaque(map.tile(targetX, targetY)) || !DosMap.walkable(map.tile(targetX, targetY))) { message = "Attack blocked by terrain."; break; }
         }
         if (!foundEnemy) {
             events.add(new Event(Action.ATTACK, 31, x, y, endX, endY));
@@ -183,6 +183,11 @@ public final class Battle {
     public int tile(int x, int y) {
         int enemy = enemyAt(x, y);
         return enemy >= 0 ? enemies.get(enemy).type().tile : map.tile(x, y);
+    }
+    public boolean visible(int targetX, int targetY) { return visibleFrom(x, y, targetX, targetY); }
+    public boolean visibleFrom(int observerX, int observerY, int targetX, int targetY) {
+        if (outside(observerX, observerY) || outside(targetX, targetY)) return false;
+        return LineOfSight.visible(map::tile, observerX, observerY, targetX, targetY);
     }
     public int groundTile(int x, int y) { return map.tile(x, y); }
     public List<Event> events() { return List.copyOf(events); }

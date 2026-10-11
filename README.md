@@ -55,6 +55,11 @@ near their respective towns, matching the decompiled starting-coordinate table.
 * Standard `.TLK` conversations: descriptions, names, jobs, health, both custom
   keywords, triggered questions, and yes/no responses. Topic matching uses the
   first four characters, without case sensitivity.
+* Line of sight in Britannia, towns, and combat. Forests, mountains, stone/brick
+  walls, secret doors, and closed doors hide terrain and actors behind them.
+  Blockers themselves remain visible; opening a door reveals the view beyond it.
+  Ranged attacks stop at sight blockers, with enemies on the blocking tile still
+  attackable. Combat animations and enemy status obey the visibility mask.
 * On-foot terrain collision, NPC collision, unlocked doors, town entry/exit,
   castle stairs, passing turns, and visits to the seven surface shrines.
 * Visible Orc, Skeleton, and Headless land encounters that pursue the Avatar.
@@ -99,6 +104,17 @@ than a cycle-accurate recreation of the DOS engine. Ranged daggers are lost when
 thrown at a distant target. Monster special abilities,
 fleeing AI, treasure drops, and the rest of the original bestiary remain unfinished.
 
+Visibility uses symmetric center-to-center tile rays: two opaque tiles meeting
+at a diagonal seal that corner; a single corner does not. Exploration sight is
+limited to the existing 15x15 viewport and wraps across Britannia's edges.
+Towns and battlefields do not wrap. Unseen tiles are black, without persistent
+explored-map memory. Combat sight uses the animated Avatar position during
+movement. NPCs and monsters do not block sight; their underlying terrain does.
+This is a tile-based visibility implementation, rather than a reconstruction of
+Ultima IV's original round/square opacity algorithms. Closed-door occlusion and
+combat visibility are explicit rules for this desktop version. Enemy pursuit
+continues outside sight; sight does not change the existing enemy AI.
+
 ## Evidence and validation
 
 * `DECOMPILED/DISK_01/NEWGAME/full_listing.md`: seven choices at $6707, starting
@@ -128,6 +144,9 @@ fleeing AI, treasure drops, and the rest of the original bestiary remain unfinis
   weapon ranges/damage, hit checks,
   and damage rolls. The Java implementation is new and covers the subset above.
 
+Visibility tests cover opaque terrain, all ray directions, shallow/steep rays,
+ray symmetry, diagonal corners, door opening, NPC occlusion, world-edge wrapping,
+viewport bounds, combat visibility, and ranged attacks blocked by forests.
 Animation tests cover frame loops, scrolling phases, action order, interpolation,
 fades, timing across multiple events, and unchanged combat state/randomness.
 JUnit tests also cover encounter spawning/pursuit, combat map decoding, all class

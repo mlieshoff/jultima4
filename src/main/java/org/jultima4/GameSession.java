@@ -258,6 +258,15 @@ public final class GameSession {
     public String locationName() { return locationName; }
     public String message() { return message; }
 
+    /** Current sight only; monsters and NPCs do not replace terrain in occlusion checks. */
+    public boolean visible(int targetX, int targetY) {
+        if (inTown() && (targetX < 0 || targetY < 0 || targetX >= 32 || targetY >= 32)) return false;
+        int dx = inTown() ? targetX - x : Math.floorMod(targetX - x + 128, 256) - 128;
+        int dy = inTown() ? targetY - y : Math.floorMod(targetY - y + 128, 256) - 128;
+        if (Math.abs(dx) > 7 || Math.abs(dy) > 7) return false;
+        return LineOfSight.visible(this::groundTile, x, y, x + dx, y + dy);
+    }
+
     public int tile(int x, int y) {
         if (!inTown()) {
             OverworldMonsters.Encounter encounter = monsters.at(x, y);

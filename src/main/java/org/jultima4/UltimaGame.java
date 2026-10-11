@@ -215,7 +215,8 @@ public final class UltimaGame extends ApplicationAdapter {
         } else {
             for (int row = 0; row < 15; row++) {
                 for (int col = 0; col < 15; col++) {
-                    int tile = world.tile(world.x() + col - 7, world.y() + row - 7);
+                    int mapX = world.x() + col - 7, mapY = world.y() + row - 7;
+                    int tile = world.visible(mapX, mapY) ? world.tile(mapX, mapY) : 126;
                     drawTile(tile, 24 + col * 38, 620 - row * 38, 38);
                 }
             }
@@ -248,20 +249,41 @@ public final class UltimaGame extends ApplicationAdapter {
 
     private void renderCombat() {
         Battle battle = world.battle();
+        int observerX = battle.x(), observerY = battle.y();
+        if (combatAnimation.playing()) {
+            for (CombatAnimation.Sprite sprite : combatAnimation.sprites()) {
+                if (sprite.tile() == 31) {
+                    observerX = Math.max(0, Math.min(10, Math.round(sprite.x())));
+                    observerY = Math.max(0, Math.min(10, Math.round(sprite.y())));
+                    break;
+                }
+            }
+        }
         text("COMBAT / " + battle.mapName(), 24, 665);
         for (int row = 0; row < 11; row++) {
             for (int col = 0; col < 11; col++) {
-                drawTile(combatAnimation.playing() ? battle.groundTile(col, row) : battle.tile(col, row),
+                int tile = battle.visibleFrom(observerX, observerY, col, row) ?
+                    (combatAnimation.playing() ? battle.groundTile(col, row) : battle.tile(col, row)) : 126;
+                drawTile(tile,
                     44 + col * 48, 590 - row * 48, 48);
             }
         }
         if (combatAnimation.playing()) {
             for (CombatAnimation.Sprite sprite : combatAnimation.sprites()) {
+                if (sprite.tile() != 31 && !battle.visibleFrom(observerX, observerY, Math.round(sprite.x()), Math.round(sprite.y()))) continue;
                 batch.setColor(1, 1, 1, sprite.alpha());
                 drawTile(sprite.tile(), 44 + sprite.x() * 48, 590 - sprite.y() * 48, 48);
             }
             batch.setColor(Color.WHITE);
-            drawCombatEffect();
+            drawCombatEffect(observerX, observerY);
+            // Moving sprites straddle tiles; cover their portions outside the visible area.
+            for (int row = 0; row < 11; row++) {
+                for (int col = 0; col < 11; col++) {
+                    if (!battle.visibleFrom(observerX, observerY, col, row)) {
+                        drawTile(126, 44 + col * 48, 590 - row * 48, 48);
+                    }
+                }
+            }
         } else if (battle.outcome() != Battle.Outcome.FLED) {
             drawTile(world.avatar().defeated() ? 56 : 31, 44 + battle.x() * 48, 590 - battle.y() * 48, 48);
         }
@@ -270,9 +292,11 @@ public final class UltimaGame extends ApplicationAdapter {
         text("XP " + world.avatar().experience(), 620, 560);
         text("Weapon: " + world.avatar().weapon().displayName, 620, 525);
         text("Round: " + battle.rounds(), 620, 490);
-        for (int i = 0; i < battle.enemies().size(); i++) {
-            Battle.Enemy enemy = battle.enemies().get(i);
-            text(enemy.type().displayName + " HP " + enemy.health(), 620, 445 - i * 30);
+        int visibleEnemy = 0;
+        for (Battle.Enemy enemy : battle.enemies()) {
+            if (!combatAnimation.playing() && battle.visibleFrom(observerX, observerY, enemy.x(), enemy.y())) {
+                text(enemy.type().displayName + " HP " + enemy.health(), 620, 445 - visibleEnemy++ * 30);
+            }
         }
         font.setColor(Color.GOLD);
         text("Chronicle", 620, 365);
@@ -322,18 +346,20 @@ public final class UltimaGame extends ApplicationAdapter {
         batch.draw(region, x, y, size, size);
     }
 
-    private void drawCombatEffect() {
+    private void drawCombatEffect(int observerX, int observerY) {
         Battle.Event event = combatAnimation.current();
         float progress = combatAnimation.progress();
         if (event.action() == Battle.Action.HIT || event.action() == Battle.Action.MISS) {
-            if ((int) (progress * 6) % 2 == 0) {
+            if (world.battle().visibleFrom(observerX, observerY, event.toX(), event.toY()) && (int) (progress * 6) % 2 == 0) {
                 drawTile(event.action() == Battle.Action.HIT ? 79 : 77, 44 + event.toX() * 48, 590 - event.toY() * 48, 48);
             }
         } else if (event.action() == Battle.Action.ATTACK &&
             Math.abs(event.toX() - event.fromX()) + Math.abs(event.toY() - event.fromY()) > 1) {
             float x = event.fromX() + (event.toX() - event.fromX()) * progress;
             float y = event.fromY() + (event.toY() - event.fromY()) * progress;
-            drawTile(78, 44 + x * 48 + 12, 590 - y * 48 + 12, 24);
+            if (world.battle().visibleFrom(observerX, observerY, Math.round(x), Math.round(y))) {
+                drawTile(78, 44 + x * 48 + 12, 590 - y * 48 + 12, 24);
+            }
         }
     }
 
