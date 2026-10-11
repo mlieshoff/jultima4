@@ -16,8 +16,10 @@ public final class DemoWorld {
         if (x < 2 || y < 2 || x > 29 || y > 29) {
             return 0;
         }
-        for (int[] shrine : SHRINES) if (x == shrine[0] && y == shrine[1]) {
-            return 0x1d;
+        for (int[] shrine : SHRINES) {
+            if (x == shrine[0] && y == shrine[1]) {
+                return 0x1d;
+            }
         }
         if (x == 11 && y >= 8 && y <= 23 && y != 16) {
             return 0x0d;

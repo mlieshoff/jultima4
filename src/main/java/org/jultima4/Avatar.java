@@ -50,7 +50,7 @@ public final class Avatar {
             throw new IllegalArgumentException("Unsupported starting equipment or class in PARTY.NEW");
         }
         return new Avatar(word(data, record + 2), creation.strength(), creation.dexterity(),
-        Weapon.values()[weapon], ARMOR_DEFENSES[armor], word(data, record + 4));
+            Weapon.values()[weapon], ARMOR_DEFENSES[armor], word(data, record + 4));
     }
 
     private static int word(byte[] data, int offset) {

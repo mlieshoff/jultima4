@@ -42,7 +42,7 @@ public record CombatMap(String name, byte[] terrain, List<Position> monsterStart
             starts.add(new Position(Byte.toUnsignedInt(data[i]), Byte.toUnsignedInt(data[16 + i])));
         }
         return new CombatMap(name, Arrays.copyOfRange(data, 64, 185), starts,
-        new Position(Byte.toUnsignedInt(data[32]), Byte.toUnsignedInt(data[40])));
+            new Position(Byte.toUnsignedInt(data[32]), Byte.toUnsignedInt(data[40])));
     }
 
     public int tile(int x, int y) {

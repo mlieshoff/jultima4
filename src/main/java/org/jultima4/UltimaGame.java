@@ -570,7 +570,7 @@ public final class UltimaGame extends ApplicationAdapter {
         }
         int slot = TileAnimation.scrollSlot(tile);
         TextureRegion region = slot < 0 ? tiles[TileAnimation.frame(tile, animationSeconds)] :
-        scrollingTiles[slot * 16 + TileAnimation.scrollOffset(animationSeconds)];
+            scrollingTiles[slot * 16 + TileAnimation.scrollOffset(animationSeconds)];
         batch.draw(region, x, y, size, size);
     }
 
@@ -615,8 +615,10 @@ public final class UltimaGame extends ApplicationAdapter {
         if (penPixel != null) {
             penPixel.dispose();
         }
-        for (Texture picture : frontPictures) if (picture != null) {
-            picture.dispose();
+        for (Texture picture : frontPictures) {
+            if (picture != null) {
+                picture.dispose();
+            }
         }
     }
 }

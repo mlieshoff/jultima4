@@ -219,8 +219,10 @@ public final class Battle {
     }
 
     private int enemyAt(int x, int y) {
-        for (int i = 0; i < enemies.size(); i++) if (enemies.get(i).x() == x && enemies.get(i).y() == y) {
-            return i;
+        for (int i = 0; i < enemies.size(); i++) {
+            if (enemies.get(i).x() == x && enemies.get(i).y() == y) {
+                return i;
+            }
         }
         return -1;
     }

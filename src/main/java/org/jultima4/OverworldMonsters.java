@@ -28,8 +28,10 @@ public final class OverworldMonsters {
     public Encounter at(int x, int y) {
         x = Math.floorMod(x, 256);
         y = Math.floorMod(y, 256);
-        for (Encounter encounter : encounters) if (encounter.x() == x && encounter.y() == y) {
-            return encounter;
+        for (Encounter encounter : encounters) {
+            if (encounter.x() == x && encounter.y() == y) {
+                return encounter;
+            }
         }
         return null;
     }
