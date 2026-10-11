@@ -15,12 +15,14 @@ public final class EgaTiles {
         this.data = data.clone();
     }
 
+    static int palette(int color) { return PALETTE[color]; }
+
     public int rgba(int tile, int x, int y) {
         if (tile < 0 || tile > 255 || x < 0 || x > 15 || y < 0 || y > 15) {
             throw new IllegalArgumentException("Invalid tile or pixel coordinate");
         }
         int packed = Byte.toUnsignedInt(data[tile * 128 + y * 8 + x / 2]);
         int color = x % 2 == 0 ? packed >>> 4 : packed & 15;
-        return PALETTE[color];
+        return palette(color);
     }
 }
