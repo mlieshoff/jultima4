@@ -35,6 +35,8 @@ the original dilemmas.
 | O, then a direction | Open an unlocked door |
 | K | Use Castle Britannia stairs at (3,3) or (27,3) |
 | M | Contemplate at a surface shrine; records a visit only |
+| F, then a direction | Attack a monster; use the equipped weapon in combat |
+| Enter after victory / fleeing | Return to Britannia |
 | Space | Pass a turn |
 | R | Restart character creation (discards the session) |
 | Escape | Cancel a direction prompt, or quit when exploring |
@@ -55,25 +57,40 @@ near their respective towns, matching the decompiled starting-coordinate table.
   first four characters, without case sensitivity.
 * On-foot terrain collision, NPC collision, unlocked doors, town entry/exit,
   castle stairs, passing turns, and visits to the seven surface shrines.
+* Visible Orc, Skeleton, and Headless land encounters that pursue the Avatar.
+* Solo turn-based combat on eight original `.CON` battlefields: cardinal melee
+  and ranged attacks, terrain blocking, enemy movement, damage, kills, experience,
+  victory, fleeing by walking off the battlefield, and defeat.
+* Class starting health, experience, weapon, and armor from `PARTY.NEW`; selected
+  strength and dexterity affect attacks. Health and experience persist between battles.
 * Seven virtue selections with the documented stat increments and +5 virtue
   points per choice.
 
-Maven packages the world map, EGA shapes, town maps, and dialogue as classpath
-resources. The supplied `COMPILED` folder is retained in Git as requested.
-The DOS executables, drivers, documents, dungeon/combat data, and saves remain
+Maven packages the world map, EGA shapes, town maps, dialogue, combat maps, and
+new-party template as classpath resources. The supplied `COMPILED` folder is retained in Git as requested.
+The DOS executables, drivers, documents, dungeon data, and saves remain
 in the source folder; they are not executed or altered by the Java game.
-The supplied save files are not loaded. The old `DemoWorld` model and its tests
-are retained, but the desktop game now uses `GameSession` and the DOS data.
+Existing save files are not loaded; `PARTY.NEW` supplies only initial character
+values. The old `DemoWorld` model and its tests are retained, but the desktop game now uses `GameSession` and the DOS data.
 
 ## Remaining work
 
-This is an exploration and dialogue increment, not a complete port. NPCs stay
+This is a playable exploration, dialogue, and solo combat increment. NPCs stay
 at their original starting positions. Shops and special conversations (including
-Lord British and Hawkwind), recruiting, combat, dungeon gameplay, spellcasting,
-inventory, food, terrain delays/damage, vehicles, moongates, full shrine rituals,
+Lord British and Hawkwind), recruiting, party combat, dungeon gameplay, spellcasting,
+equipment changes, healing/level advancement, inventory, food, terrain delays/damage,
+vehicles, moongates, full shrine rituals,
 virtue changes from conversations, save/load, sound, and the endgame are not
 implemented. Without vehicles and moongates, some areas cannot yet be reached
 on foot. Shrine contemplation does not grant partial Avatarhood.
+
+Land encounters use a custom initial cadence: one group of one or two monsters
+spawns every twelve outdoor turns on reachable land six to eight steps away,
+with at most eight groups. They move every second turn and disappear more than
+twenty tiles away. Towns are safe. Fleeing grants six outdoor turns to move away;
+survivors remain, with fresh health when encountered again. R restarts after defeat.
+Ranged daggers are lost when thrown at a distant target. Monster special abilities,
+fleeing AI, treasure drops, and the rest of the original bestiary remain unfinished.
 
 ## Evidence and validation
 
@@ -93,6 +110,19 @@ on foot. Shrine contemplation does not grant partial Avatarhood.
   informs the implemented on-foot collision subset. No XU4 implementation code
   is included.
 
-JUnit tests cover chunk order and boundaries, EGA nibble/color decoding,
+* `DECOMPILED/DISK_01/ULT4/01_ULT4_6FB0.md` and
+  `DECOMPILED/DISK_02/CON_/full_listing.md` inform terrain battlefield selection
+  and combat map layout. `COMPILED/History.txt` describes directional combat.
+* [XU4 combat metadata](https://github.com/xu4-engine/u4/blob/master/module/Ultima-IV/config.b),
+  [combat rules](https://github.com/xu4-engine/u4/blob/master/src/combat.cpp),
+  [party attacks](https://github.com/xu4-engine/u4/blob/master/src/party.cpp), and
+  [creature attributes](https://github.com/xu4-engine/u4/blob/master/src/creature.cpp)
+  inform the selected monster health/experience, weapon ranges/damage, hit checks,
+  and damage rolls. The Java implementation is new and covers the subset above.
+
+JUnit tests cover encounter spawning/pursuit, combat map decoding, all class
+starting equipment, attacks and obstructions, enemy routing, turn order, experience,
+victory/fleeing/defeat transitions, persistent health, chunk order and boundaries,
+EGA nibble/color decoding,
 malformed records, actual resource loading and landmarks, class starts,
 town transitions, doors/NPC blocking, castle stairs, and dialogue questions.

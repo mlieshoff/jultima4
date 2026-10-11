@@ -49,7 +49,7 @@ public record DosGameData(DosMap world, EgaTiles shapes, Map<String, DosTown> to
         }
     }
 
-    private static byte[] read(String name) throws IOException {
+    static byte[] read(String name) throws IOException {
         try (InputStream stream = DosGameData.class.getResourceAsStream("/dos/" + name)) {
             if (stream == null) throw new IOException("Missing DOS data resource: " + name);
             return stream.readAllBytes();

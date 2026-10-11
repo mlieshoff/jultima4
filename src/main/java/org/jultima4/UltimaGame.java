@@ -86,10 +86,14 @@ public final class UltimaGame extends ApplicationAdapter {
             return true;
         }
         if (key == Input.Keys.R) { restart(); return true; }
+        if (world != null && world.battle() != null) return handleCombatKey(key);
         if (!creation.complete()) {
             if (key != Input.Keys.A && key != Input.Keys.B) return false;
             creation.choose(key == Input.Keys.A ? 0 : 1);
-            if (creation.complete()) world = new GameSession(data, creation.startingX(), creation.startingY());
+            if (creation.complete()) {
+                try { world = GameSession.start(data, creation); }
+                catch (IOException ex) { throw new IllegalStateException("Cannot initialize combat data", ex); }
+            }
             return true;
         }
         int dx = 0, dy = 0;
@@ -114,6 +118,7 @@ public final class UltimaGame extends ApplicationAdapter {
                 }
             }
             else if ("Open".equals(directionAction)) world.openDoor(dx, dy);
+            else if ("Attack".equals(directionAction)) world.attack(dx, dy);
             else world.move(dx, dy);
             directionAction = null;
             return true;
@@ -124,12 +129,42 @@ public final class UltimaGame extends ApplicationAdapter {
             case Input.Keys.X -> world.leave();
             case Input.Keys.K -> world.climb();
             case Input.Keys.T -> directionAction = "Talk";
+            case Input.Keys.F -> directionAction = "Attack";
             case Input.Keys.O -> directionAction = "Open";
             case Input.Keys.SPACE -> world.pass();
             case Input.Keys.M -> world.meditate();
             default -> { return false; }
         }
         return true;
+    }
+
+    private boolean handleCombatKey(int key) {
+        if (world.battle().outcome() != Battle.Outcome.ACTIVE) {
+            if (key == Input.Keys.ENTER && world.battle().outcome() != Battle.Outcome.DEFEAT) {
+                world.finishCombat();
+                directionAction = null;
+                return true;
+            }
+            return false;
+        }
+        int dx = 0, dy = 0;
+        switch (key) {
+            case Input.Keys.UP, Input.Keys.W -> dy = -1;
+            case Input.Keys.DOWN, Input.Keys.S -> dy = 1;
+            case Input.Keys.LEFT, Input.Keys.A -> dx = -1;
+            case Input.Keys.RIGHT, Input.Keys.D -> dx = 1;
+            default -> { }
+        }
+        if (dx != 0 || dy != 0) {
+            if ("Attack".equals(directionAction)) world.attack(dx, dy);
+            else world.move(dx, dy);
+            directionAction = null;
+            return true;
+        }
+        if (directionAction != null) return false;
+        if (key == Input.Keys.F) { directionAction = "Attack"; return true; }
+        if (key == Input.Keys.SPACE) { world.pass(); return true; }
+        return false;
     }
 
     private void restart() {
@@ -157,6 +192,8 @@ public final class UltimaGame extends ApplicationAdapter {
             text("Seven choices determine thy class and starting place in Britannia.", 60, 250);
             text("Simplified prompts; stat tables follow the decompiled NEWGAME.", 60, 210);
             text("A/B choose | R restart | Esc quit", 24, 30);
+        } else if (world.battle() != null) {
+            renderCombat();
         } else {
             for (int row = 0; row < 15; row++) {
                 for (int col = 0; col < 15; col++) {
@@ -168,13 +205,15 @@ public final class UltimaGame extends ApplicationAdapter {
             text(world.locationName(), 24, 665);
             text("Avatar: " + creation.winner().characterClass, 620, 630);
             text("STR " + creation.strength() + " DEX " + creation.dexterity() + " INT " + creation.intelligence(), 620, 595);
-            text("Position: " + world.x() + ", " + world.y(), 620, 560);
-            text("Turns: " + world.turns(), 620, 525);
-            text("Surface shrines visited: " + world.visitedCount() + "/7", 620, 490);
+            text("HP " + world.avatar().health() + "/" + world.avatar().maximumHealth() + "  XP " + world.avatar().experience(), 620, 560);
+            text("Weapon: " + world.avatar().weapon().displayName, 620, 530);
+            text("Position: " + world.x() + ", " + world.y(), 620, 500);
+            text("Turns: " + world.turns(), 620, 470);
+            text("Surface shrines visited: " + world.visitedCount() + "/7", 620, 440);
             font.setColor(Color.GOLD);
-            text(world.talking() ? "Talking to " + world.npcName() : "Chronicle", 620, 445);
+            text(world.talking() ? "Talking to " + world.npcName() : "Chronicle", 620, 395);
             font.setColor(Color.WHITE);
-            font.draw(batch, world.message(), 620, 415, 355, -1, true);
+            font.draw(batch, world.message(), 620, 365, 355, -1, true);
             if (world.talking()) {
                 text("> " + question + "_", 24, 60);
                 text("Type a topic and Enter | BYE or Esc ends the conversation", 24, 30);
@@ -182,11 +221,47 @@ public final class UltimaGame extends ApplicationAdapter {
                 text(directionAction + ": choose a direction (arrows or WASD). Esc cancels.", 24, 60);
                 text("Arrows/WASD choose direction", 24, 30);
             } else {
-                text("Arrows/WASD move | E enter | X leave | T talk | O open door", 24, 60);
+                text("Move: arrows/WASD | F attack | E enter | X leave | T talk | O open", 24, 60);
                 text("K castle stairs | M contemplate | Space pass | R restart | Esc quit", 24, 30);
             }
         }
         batch.end();
+    }
+
+    private void renderCombat() {
+        Battle battle = world.battle();
+        text("COMBAT / " + battle.mapName(), 24, 665);
+        for (int row = 0; row < 11; row++) {
+            for (int col = 0; col < 11; col++) {
+                batch.draw(tiles[battle.tile(col, row)], 44 + col * 48, 590 - row * 48, 48, 48);
+            }
+        }
+        if (battle.outcome() != Battle.Outcome.FLED) {
+            batch.draw(tiles[world.avatar().defeated() ? 56 : 31], 44 + battle.x() * 48, 590 - battle.y() * 48, 48, 48);
+        }
+        text("Avatar: " + creation.winner().characterClass, 620, 630);
+        text("HP " + world.avatar().health() + "/" + world.avatar().maximumHealth(), 620, 595);
+        text("XP " + world.avatar().experience(), 620, 560);
+        text("Weapon: " + world.avatar().weapon().displayName, 620, 525);
+        text("Round: " + battle.rounds(), 620, 490);
+        for (int i = 0; i < battle.enemies().size(); i++) {
+            Battle.Enemy enemy = battle.enemies().get(i);
+            text(enemy.type().displayName + " HP " + enemy.health(), 620, 445 - i * 30);
+        }
+        font.setColor(Color.GOLD);
+        text("Chronicle", 620, 365);
+        font.setColor(Color.WHITE);
+        font.draw(batch, battle.message(), 620, 335, 355, -1, true);
+        if (battle.outcome() == Battle.Outcome.DEFEAT) {
+            text("Thou art defeated. R starts a new character | Esc quit", 24, 60);
+        } else if (battle.outcome() != Battle.Outcome.ACTIVE) {
+            text("Enter returns to Britannia | R restart | Esc quit", 24, 60);
+        } else if (directionAction != null) {
+            text("Attack: choose a direction (arrows/WASD) | Esc cancels", 24, 60);
+        } else {
+            text("Arrows/WASD move | F then direction attack | Space pass", 24, 60);
+            text("Walk off the battlefield to flee | R restart | Esc quit", 24, 30);
+        }
     }
 
     private void text(String text, float x, float y) { font.draw(batch, text, x, y); }
