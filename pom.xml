@@ -19,6 +19,7 @@
       <resource><directory>COMPILED</directory><targetPath>dos</targetPath><includes>
         <include>WORLD.MAP</include><include>SHAPES.EGA</include><include>*.ULT</include><include>*.TLK</include><include>*.CON</include><include>PARTY.NEW</include><include>TITLE.EGA</include><include>TITLE.EXE</include><include>GYPSY.EGA</include><include>WAGON.EGA</include><include>TREE.EGA</include><include>PORTAL.EGA</include><include>OUTSIDE.EGA</include><include>INSIDE.EGA</include><include>ABACUS.EGA</include><include>HONCOM.EGA</include><include>VALJUS.EGA</include><include>SACHONOR.EGA</include><include>SPIRHUM.EGA</include>
       </includes></resource>
+      <resource><directory>midi</directory><targetPath>music</targetPath><includes><include>*.mid</include></includes></resource>
     </resources>
     <plugins>
       <plugin>

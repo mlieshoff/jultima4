@@ -13,6 +13,7 @@ public final class CombatAnimation {
   private List<Battle.Event> events = List.of();
   private int index;
   private float elapsed;
+  private boolean pendingCue;
 
   public void capture(Battle battle) {
     clear();
@@ -26,11 +27,13 @@ public final class CombatAnimation {
     events = List.copyOf(turn);
     index = 0;
     elapsed = 0;
+    pendingCue = !events.isEmpty();
   }
 
   public void clear() {
     actors.clear();
     events = List.of();
+    pendingCue = false;
     index = 0;
     elapsed = 0;
   }
@@ -48,18 +51,30 @@ public final class CombatAnimation {
   }
 
   public void update(float seconds) {
+    advance(seconds);
+  }
+
+  /** Events starting during this frame, including those crossed by a long frame. */
+  List<Battle.Event> advance(float seconds) {
     if (!Float.isFinite(seconds) || seconds < 0) {
       throw new IllegalArgumentException("Invalid animation delta");
+    }
+    List<Battle.Event> started = new ArrayList<>();
+    if (pendingCue && playing()) {
+      started.add(current());
+      pendingCue = false;
     }
     elapsed += seconds;
     while (playing() && elapsed >= duration(current().action())) {
       elapsed -= duration(current().action());
       apply(current());
       index++;
+      if (playing()) started.add(current());
     }
     if (!playing()) {
       elapsed = 0;
     }
+    return List.copyOf(started);
   }
 
   private static float duration(Battle.Action action) {
