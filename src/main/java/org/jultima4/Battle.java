@@ -9,6 +9,9 @@ import java.util.Random;
 /** One Avatar action followed by one action per surviving enemy. */
 public final class Battle {
     public enum Outcome { ACTIVE, VICTORY, FLED, DEFEAT }
+    public enum Action { MOVE, ATTACK, HIT, MISS, DEATH, FLEE }
+    public record Event(Action action, int tile, int fromX, int fromY, int toX, int toY) { }
+    private final List<Event> events = new ArrayList<>();
     public record Enemy(MonsterType type, int x, int y, int health) { }
     private static final int[][] DIRECTIONS = {{0,-1},{1,0},{0,1},{-1,0}};
     private final CombatMap map;
@@ -41,43 +44,63 @@ public final class Battle {
     public void move(int dx, int dy) {
         active();
         direction(dx, dy);
+        events.clear();
         int nextX = x + dx, nextY = y + dy;
         if (outside(nextX, nextY)) {
+            events.add(new Event(Action.FLEE, 31, x, y, nextX, nextY));
             outcome = Outcome.FLED;
             rounds++;
             message = "Thou hast fled the battlefield.";
             return;
         }
         if (!DosMap.walkable(map.tile(nextX, nextY)) || enemyAt(nextX, nextY) >= 0) message = "Blocked!";
-        else { x = nextX; y = nextY; message = "Moved."; }
+        else {
+            events.add(new Event(Action.MOVE, 31, x, y, nextX, nextY));
+            x = nextX; y = nextY; message = "Moved.";
+        }
         enemyTurn();
     }
 
     public void attack(int dx, int dy) {
         active();
         direction(dx, dy);
+        events.clear();
         message = "No enemy in that direction.";
+        int endX = x, endY = y;
+        boolean foundEnemy = false;
         boolean thrownDagger = false;
         for (int distance = 1; distance <= avatar.weapon().range; distance++) {
             int targetX = x + dx * distance, targetY = y + dy * distance;
             if (outside(targetX, targetY)) break;
+            endX = targetX; endY = targetY;
             int index = enemyAt(targetX, targetY);
             if (index >= 0) {
+                foundEnemy = true;
+                events.add(new Event(Action.ATTACK, 31, x, y, targetX, targetY));
                 Enemy enemy = enemies.get(index);
                 thrownDagger = distance > 1 && avatar.weapon() == Avatar.Weapon.DAGGER;
                 if (random.nextInt(256) + avatar.attackBonus() > 128) {
+                    events.add(new Event(Action.HIT, enemy.type().tile, x, y, targetX, targetY));
                     int damage = avatar.damage(random);
                     int health = Math.max(0, enemy.health() - damage);
                     message = "Hit " + enemy.type().displayName + " for " + damage + ".";
                     if (health == 0) {
+                        events.add(new Event(Action.DEATH, enemy.type().tile, targetX, targetY, targetX, targetY));
                         enemies.remove(index);
                         avatar.awardExperience(enemy.type().experience);
                         message += " Killed! +" + enemy.type().experience + " XP.";
                     } else enemies.set(index, new Enemy(enemy.type(), enemy.x(), enemy.y(), health));
-                } else message = "Missed " + enemy.type().displayName + "!";
+                } else {
+                    events.add(new Event(Action.MISS, enemy.type().tile, x, y, targetX, targetY));
+                    message = "Missed " + enemy.type().displayName + "!";
+                }
                 break;
             }
             if (!DosMap.walkable(map.tile(targetX, targetY))) { message = "Attack blocked by terrain."; break; }
+        }
+        if (!foundEnemy) {
+            events.add(new Event(Action.ATTACK, 31, x, y, endX, endY));
+            events.add(new Event(Action.MISS, 31, x, y, endX, endY));
         }
         if (thrownDagger) { avatar.loseThrownDagger(); message += " Dagger thrown; hands readied."; }
         if (enemies.isEmpty()) {
@@ -87,7 +110,7 @@ public final class Battle {
         } else enemyTurn();
     }
 
-    public void pass() { active(); message = "Pass"; enemyTurn(); }
+    public void pass() { active(); events.clear(); message = "Pass"; enemyTurn(); }
 
     private void enemyTurn() {
         rounds++;
@@ -95,19 +118,28 @@ public final class Battle {
         for (int i = 0; i < enemies.size(); i++) {
             Enemy enemy = enemies.get(i);
             if (Math.abs(enemy.x() - x) + Math.abs(enemy.y() - y) == 1) {
+                events.add(new Event(Action.ATTACK, enemy.type().tile, enemy.x(), enemy.y(), x, y));
                 if (random.nextInt(256) > avatar.defense()) {
+                    events.add(new Event(Action.HIT, 31, enemy.x(), enemy.y(), x, y));
                     int damage = enemy.type().damage(random);
                     avatar.hurt(damage);
                     log.append("\n").append(enemy.type().displayName).append(" hits for ").append(damage).append('.');
-                } else log.append("\n").append(enemy.type().displayName).append(" misses.");
+                } else {
+                    events.add(new Event(Action.MISS, 31, enemy.x(), enemy.y(), x, y));
+                    log.append("\n").append(enemy.type().displayName).append(" misses.");
+                }
                 if (avatar.defeated()) {
+                    events.add(new Event(Action.DEATH, 31, x, y, x, y));
                     outcome = Outcome.DEFEAT;
                     log.append("\nThou art defeated. R starts a new character.");
                     break;
                 }
             } else {
                 int step = nextStep(enemy.x(), enemy.y());
-                if (step >= 0) enemies.set(i, new Enemy(enemy.type(), step % 11, step / 11, enemy.health()));
+                if (step >= 0) {
+                    events.add(new Event(Action.MOVE, enemy.type().tile, enemy.x(), enemy.y(), step % 11, step / 11));
+                    enemies.set(i, new Enemy(enemy.type(), step % 11, step / 11, enemy.health()));
+                }
             }
         }
         message = log.toString();
@@ -152,6 +184,8 @@ public final class Battle {
         int enemy = enemyAt(x, y);
         return enemy >= 0 ? enemies.get(enemy).type().tile : map.tile(x, y);
     }
+    public int groundTile(int x, int y) { return map.tile(x, y); }
+    public List<Event> events() { return List.copyOf(events); }
     public int x() { return x; }
     public int y() { return y; }
     public int rounds() { return rounds; }

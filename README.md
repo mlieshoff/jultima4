@@ -58,6 +58,11 @@ near their respective towns, matching the decompiled starting-coordinate table.
 * On-foot terrain collision, NPC collision, unlocked doors, town entry/exit,
   castle stairs, passing turns, and visits to the seven surface shrines.
 * Visible Orc, Skeleton, and Headless land encounters that pursue the Avatar.
+* Original EGA sprite cycles for monsters, NPCs, and the Avatar's selected class;
+  scrolling water, magical fields, and lava. Ship/horse direction tiles stay fixed.
+* Combat movement interpolation, melee lunges, moving ranged attack markers,
+  hit/miss flashes, and death/flee fades. Each turn plays in action order before
+  accepting the next command; R and Escape remain available during playback.
 * Solo turn-based combat on eight original `.CON` battlefields: cardinal melee
   and ranged attacks, terrain blocking, enemy movement, damage, kills, experience,
   victory, fleeing by walking off the battlefield, and defeat.
@@ -89,7 +94,9 @@ spawns every twelve outdoor turns on reachable land six to eight steps away,
 with at most eight groups. They move every second turn and disappear more than
 twenty tiles away. Towns are safe. Fleeing grants six outdoor turns to move away;
 survivors remain, with fresh health when encountered again. R restarts after defeat.
-Ranged daggers are lost when thrown at a distant target. Monster special abilities,
+Animation timing and the generic ranged marker are presentation choices rather
+than a cycle-accurate recreation of the DOS engine. Ranged daggers are lost when
+thrown at a distant target. Monster special abilities,
 fleeing AI, treasure drops, and the rest of the original bestiary remain unfinished.
 
 ## Evidence and validation
@@ -117,10 +124,13 @@ fleeing AI, treasure drops, and the rest of the original bestiary remain unfinis
   [combat rules](https://github.com/xu4-engine/u4/blob/master/src/combat.cpp),
   [party attacks](https://github.com/xu4-engine/u4/blob/master/src/party.cpp), and
   [creature attributes](https://github.com/xu4-engine/u4/blob/master/src/creature.cpp)
-  inform the selected monster health/experience, weapon ranges/damage, hit checks,
+  inform the original tile frame groups, selected monster health/experience,
+  weapon ranges/damage, hit checks,
   and damage rolls. The Java implementation is new and covers the subset above.
 
-JUnit tests cover encounter spawning/pursuit, combat map decoding, all class
+Animation tests cover frame loops, scrolling phases, action order, interpolation,
+fades, timing across multiple events, and unchanged combat state/randomness.
+JUnit tests also cover encounter spawning/pursuit, combat map decoding, all class
 starting equipment, attacks and obstructions, enemy routing, turn order, experience,
 victory/fleeing/defeat transitions, persistent health, chunk order and boundaries,
 EGA nibble/color decoding,
