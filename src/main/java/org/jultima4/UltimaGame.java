@@ -29,6 +29,7 @@ public final class UltimaGame extends ApplicationAdapter {
   private final TextureRegion[] scrollingTiles = new TextureRegion[128];
   private final CombatAnimation combatAnimation = new CombatAnimation();
   private final CharacterStats characterStats = new CharacterStats();
+  private GameAudio audio;
   private double animationSeconds;
   private DosGameData data;
   private CharacterScreens screens;
@@ -105,6 +106,7 @@ public final class UltimaGame extends ApplicationAdapter {
       throw new IllegalStateException("Cannot load title demonstration", ex);
     }
     screens.intro();
+    audio = new GameAudio(new DesktopAudio(message -> Gdx.app.error("Audio", message)));
     Gdx.input.setInputProcessor(
         new InputAdapter() {
           @Override
@@ -136,6 +138,43 @@ public final class UltimaGame extends ApplicationAdapter {
   }
 
   private boolean handleKey(int key) {
+    if (key == Input.Keys.F10) {
+      audio.toggleMute();
+      return true;
+    }
+    GameSession before = world;
+    int x = before == null ? 0 : before.x(), y = before == null ? 0 : before.y();
+    CharacterScreens.Stage stage = screens.stage();
+    int choices = stage == CharacterScreens.Stage.CREATION ? screens.creation().choices() : -1;
+    CreationStory.Phase phase = creationStory.phase();
+    int page = creationStory.page();
+    boolean talking = before != null && before.talking();
+    boolean handled = handleKeyAction(key);
+    if (phase == CreationStory.Phase.QUESTIONS
+        && (key == Input.Keys.A || key == Input.Keys.B)
+        && stage == CharacterScreens.Stage.CREATION
+        && screens.stage() != CharacterScreens.Stage.TITLE
+        && choices != screens.creation().choices()) audio.effect(SpeakerEffects.Effect.CHOICE);
+    else if (phase == CreationStory.Phase.INTRODUCTION
+        && page != creationStory.page()
+        && (creationStory.page() == 3 || creationStory.page() == 5))
+      audio.effect(SpeakerEffects.Effect.PORTAL);
+    else if (before != null
+        && before == world
+        && !talking
+        && !characterStats.isOpen()
+        && stage == CharacterScreens.Stage.PLAYING
+        && world.battle() == null) {
+      if (x != world.x() || y != world.y()) audio.effect(SpeakerEffects.Effect.STEP);
+      else if (handled
+          && (horizontalStep(key) != 0 || verticalStep(key) != 0)
+          && "Blocked!".equals(world.message())) audio.effect(SpeakerEffects.Effect.BLOCKED);
+    }
+    if (!handled && !talking) audio.effect(SpeakerEffects.Effect.ERROR);
+    return handled;
+  }
+
+  private boolean handleKeyAction(int key) {
     if (screens.stage() != CharacterScreens.Stage.PLAYING) {
       return handleFrontKey(key);
     }
@@ -577,11 +616,14 @@ public final class UltimaGame extends ApplicationAdapter {
     animationSeconds += delta;
     screens.update(delta);
     if (screens.stage() == CharacterScreens.Stage.TITLE) titleSceneSeconds += delta;
-    if (!characterStats.isOpen()) combatAnimation.update(delta);
+    audio.music(GameAudio.context(screens.stage(), creationStory, world));
+    if (!characterStats.isOpen()) audio.combat(combatAnimation.advance(delta));
     ScreenUtils.clear(0.025f, 0.035f, 0.055f, 1);
     viewport.apply();
     batch.setProjectionMatrix(viewport.getCamera().combined);
     batch.begin();
+    font.setColor(Color.WHITE);
+    text("F10 audio " + (audio.muted() ? "off" : "on"), 24, 14);
     if (screens.stage() != CharacterScreens.Stage.PLAYING) {
       renderFront();
       batch.end();
@@ -816,7 +858,18 @@ public final class UltimaGame extends ApplicationAdapter {
   }
 
   @Override
+  public void pause() {
+    if (audio != null) audio.pause();
+  }
+
+  @Override
+  public void resume() {
+    if (audio != null) audio.resume();
+  }
+
+  @Override
   public void dispose() {
+    if (audio != null) audio.close();
     if (batch != null) {
       batch.dispose();
     }
