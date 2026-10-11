@@ -21,6 +21,10 @@ class CharacterCreationTest {
         assertTrue(creation.complete());
         assertEquals(7, creation.choices());
         assertEquals(last, creation.winner());
+        int[] startX = {231,83,35,59,158,105,23,186};
+        int[] startY = {136,105,221,44,21,183,129,171};
+        assertEquals(startX[last.ordinal()], creation.startingX());
+        assertEquals(startY[last.ordinal()], creation.startingY());
         assertEquals(strength, creation.strength());
         assertEquals(dexterity, creation.dexterity());
         assertEquals(intelligence, creation.intelligence());
@@ -32,6 +36,7 @@ class CharacterCreationTest {
         CharacterCreation creation = new CharacterCreation(new Random(42));
         assertThrows(IllegalArgumentException.class, () -> creation.choose(2));
         assertThrows(IllegalStateException.class, creation::winner);
+        assertThrows(IllegalStateException.class, creation::startingX);
         assertEquals(0, creation.choices());
         assertEquals(15, creation.strength());
     }

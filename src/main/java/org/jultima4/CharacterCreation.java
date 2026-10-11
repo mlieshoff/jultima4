@@ -39,6 +39,9 @@ public final class CharacterCreation {
         if (!complete()) throw new IllegalStateException("Choose all seven pairs first");
         return remaining.getFirst();
     }
+    /** Starting coordinates from NEWGAME $67F9/$6801, verified as land in WORLD.MAP. */
+    public int startingX() { return new int[]{231, 83, 35, 59, 158, 105, 23, 186}[winner().ordinal()]; }
+    public int startingY() { return new int[]{136, 105, 221, 44, 21, 183, 129, 171}[winner().ordinal()]; }
     public int strength() { return strength; }
     public int dexterity() { return dexterity; }
     public int intelligence() { return intelligence; }
