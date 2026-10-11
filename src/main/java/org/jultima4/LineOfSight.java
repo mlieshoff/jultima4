@@ -4,7 +4,8 @@ import java.util.function.IntBinaryOperator;
 
 /** Center-to-center grid rays. Blockers remain visible; two solid corners seal a diagonal. */
 public final class LineOfSight {
-    private LineOfSight() { }
+    private LineOfSight() {
+    }
 
     public static boolean opaque(int tile) {
         return switch (tile) {
@@ -21,15 +22,26 @@ public final class LineOfSight {
             long nextX = (1L + 2L * crossedX) * dy;
             long nextY = (1L + 2L * crossedY) * dx;
             if (nextX == nextY) {
-                if (opaque(terrain.applyAsInt(x + stepX, y)) && opaque(terrain.applyAsInt(x, y + stepY))) return false;
-                x += stepX; y += stepY; crossedX++; crossedY++;
+                if (opaque(terrain.applyAsInt(x + stepX, y)) && opaque(terrain.applyAsInt(x, y + stepY))) {
+                    return false;
+                }
+                x += stepX;
+                y += stepY;
+                crossedX++;
+                crossedY++;
             } else if (nextX < nextY) {
-                x += stepX; crossedX++;
+                x += stepX;
+                crossedX++;
             } else {
-                y += stepY; crossedY++;
+                y += stepY;
+                crossedY++;
             }
-            if (x == toX && y == toY) return true;
-            if (opaque(terrain.applyAsInt(x, y))) return false;
+            if (x == toX && y == toY) {
+                return true;
+            }
+            if (opaque(terrain.applyAsInt(x, y))) {
+                return false;
+            }
         }
         return true;
     }
