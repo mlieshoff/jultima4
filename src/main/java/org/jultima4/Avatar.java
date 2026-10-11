@@ -76,6 +76,40 @@ public final class Avatar {
     return Byte.toUnsignedInt(data[offset]) | Byte.toUnsignedInt(data[offset + 1]) << 8;
   }
 
+  record State(
+      int maximumHealth,
+      int health,
+      int strength,
+      int dexterity,
+      Weapon weapon,
+      int defense,
+      int experience) {}
+
+  State snapshot() {
+    return new State(maximumHealth, health, strength, dexterity, weapon, defense, experience);
+  }
+
+  static Avatar restore(State state) {
+    if (state.maximumHealth() > 9999
+        || state.health() <= 0
+        || state.health() > state.maximumHealth()
+        || state.strength() > 255
+        || state.dexterity() > 255
+        || state.experience() > 9999) {
+      throw new IllegalArgumentException("Invalid saved Avatar stats");
+    }
+    Avatar avatar =
+        new Avatar(
+            state.maximumHealth(),
+            state.strength(),
+            state.dexterity(),
+            state.weapon(),
+            state.defense(),
+            state.experience());
+    avatar.health = state.health();
+    return avatar;
+  }
+
   public int health() {
     return health;
   }

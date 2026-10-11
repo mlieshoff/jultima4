@@ -7,6 +7,12 @@
     <dependency><groupId>com.badlogicgames.gdx</groupId><artifactId>gdx-backend-lwjgl3</artifactId><version>${gdx.version}</version></dependency>
     <dependency><groupId>com.badlogicgames.gdx</groupId><artifactId>gdx-platform</artifactId><version>${gdx.version}</version><classifier>natives-desktop</classifier><scope>runtime</scope></dependency>
     <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>5.11.4</version><scope>test</scope></dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>3.27.7</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <build>
     <resources><resource><directory>DECOMPILED/assets/game</directory><includes><include>01_SHP.png</include></includes><targetPath>tiles</targetPath></resource>

@@ -13,6 +13,8 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Random;
 
 public final class UltimaGame extends ApplicationAdapter {
@@ -35,6 +37,16 @@ public final class UltimaGame extends ApplicationAdapter {
   private GameSession world;
   private String directionAction;
   private char directionCharacter;
+  private String saveMessage;
+  private final Path savePath;
+
+  public UltimaGame() {
+    this(SaveGame.DEFAULT_PATH);
+  }
+
+  UltimaGame(Path savePath) {
+    this.savePath = Objects.requireNonNull(savePath);
+  }
 
   @Override
   public void create() {
@@ -101,6 +113,17 @@ public final class UltimaGame extends ApplicationAdapter {
     if (screens.stage() != CharacterScreens.Stage.PLAYING) {
       return handleFrontKey(key);
     }
+    if (key == Input.Keys.F5 || key == Input.Keys.F9) {
+      if (world.talking() || world.battle() != null || combatAnimation.playing()) {
+        saveMessage = "Finish combat or the conversation before saving or loading.";
+      } else if (key == Input.Keys.F5) {
+        saveQuest();
+      } else {
+        loadQuest();
+      }
+      return true;
+    }
+    saveMessage = null;
     if (world != null && world.talking()) {
       switch (key) {
         case Input.Keys.ESCAPE -> {
@@ -184,6 +207,32 @@ public final class UltimaGame extends ApplicationAdapter {
     return true;
   }
 
+  private void saveQuest() {
+    try {
+      SaveGame.save(savePath, screens.creation(), world);
+      saveMessage = "Quest saved. F9 restores this save.";
+      directionAction = null;
+    } catch (IOException | IllegalArgumentException | IllegalStateException ex) {
+      saveMessage = "Cannot save quest: " + ex.getMessage();
+    }
+  }
+
+  private void loadQuest() {
+    try {
+      SaveGame.Loaded loaded = SaveGame.load(savePath, data);
+      screens.resume(loaded.character());
+      world = loaded.session();
+      selectedAvatar = world.avatar();
+      directionAction = null;
+      directionCharacter = 0;
+      question.setLength(0);
+      combatAnimation.clear();
+      saveMessage = "Quest restored.";
+    } catch (IOException ex) {
+      saveMessage = "Cannot load quest: " + ex.getMessage();
+    }
+  }
+
   private static int horizontalStep(int key) {
     return switch (key) {
       case Input.Keys.LEFT, Input.Keys.A -> -1;
@@ -216,6 +265,8 @@ public final class UltimaGame extends ApplicationAdapter {
           Gdx.app.exit();
         } else if (key == Input.Keys.N || key == Input.Keys.ENTER) {
           screens.start();
+        } else if (key == Input.Keys.L || key == Input.Keys.F9) {
+          loadQuest();
         } else if (key == Input.Keys.I) {
           screens.intro();
         } else {
@@ -326,7 +377,8 @@ public final class UltimaGame extends ApplicationAdapter {
     font.setColor(Color.WHITE);
     font.draw(batch, "N / Enter - Create a character", 44, 295, 912, 1, false);
     font.draw(batch, "Esc - Quit", 44, 240, 912, 1, false);
-    text("I replay introduction | N / Enter new quest | Esc quit", 24, 50);
+    text("I replay intro | N / Enter new quest | L continue | Esc quit", 24, 50);
+    if (saveMessage != null) font.draw(batch, saveMessage, 24, 100, 950, -1, true);
   }
 
   private void renderCharacterChoices() {
@@ -430,6 +482,7 @@ public final class UltimaGame extends ApplicationAdapter {
   }
 
   private void restart() {
+    saveMessage = null;
     combatAnimation.clear();
     animationSeconds = 0;
     if (screens == null) {
@@ -499,7 +552,8 @@ public final class UltimaGame extends ApplicationAdapter {
       font.setColor(Color.GOLD);
       text(world.talking() ? "Talking to " + world.npcName() : "Chronicle", 620, 395);
       font.setColor(Color.WHITE);
-      font.draw(batch, world.message(), 620, 365, 355, -1, true);
+      font.draw(
+          batch, saveMessage == null ? world.message() : saveMessage, 620, 365, 355, -1, true);
       if (world.talking()) {
         text("> " + question + "_", 24, 60);
         text("Type a topic and Enter | BYE or Esc ends the conversation", 24, 30);
@@ -508,7 +562,10 @@ public final class UltimaGame extends ApplicationAdapter {
         text("Arrows/WASD choose direction", 24, 30);
       } else {
         text("Move: arrows/WASD | F attack | E enter | X leave | T talk | O open", 24, 60);
-        text("K castle stairs | M contemplate | Space pass | R restart | Esc quit", 24, 30);
+        text(
+            "K stairs | M contemplate | Space pass | F5 save | F9 load | R restart | Esc quit",
+            24,
+            30);
       }
     }
     batch.end();
@@ -575,7 +632,7 @@ public final class UltimaGame extends ApplicationAdapter {
     font.setColor(Color.GOLD);
     text("Chronicle", 620, 365);
     font.setColor(Color.WHITE);
-    font.draw(batch, battle.message(), 620, 335, 355, -1, true);
+    font.draw(batch, saveMessage == null ? battle.message() : saveMessage, 620, 335, 355, -1, true);
     if (combatAnimation.playing()) {
       text("Turn in motion... | R restart | Esc quit", 24, 60);
     } else if (battle.outcome() == Battle.Outcome.DEFEAT) {

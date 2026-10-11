@@ -18,6 +18,42 @@ public final class CharacterCreation {
     Collections.shuffle(remaining, random);
   }
 
+  record State(Virtue winner, List<Integer> scores) {
+    State {
+      scores = List.copyOf(scores);
+    }
+  }
+
+  State snapshot() {
+    return new State(winner(), java.util.Arrays.stream(scores).boxed().toList());
+  }
+
+  static CharacterCreation restore(State state) {
+    if (state.winner() == null || state.scores().size() != Virtue.values().length) {
+      throw new IllegalArgumentException("Invalid saved character");
+    }
+    CharacterCreation creation = new CharacterCreation(new Random(0));
+    creation.remaining.clear();
+    creation.remaining.add(state.winner());
+    int choices = 0;
+    for (Virtue virtue : Virtue.values()) {
+      int score = state.scores().get(virtue.ordinal());
+      if (score < 50 || score > 85 || (score - 50) % 5 != 0) {
+        throw new IllegalArgumentException("Invalid virtue score");
+      }
+      int wins = (score - 50) / 5;
+      choices += wins;
+      creation.scores[virtue.ordinal()] = score;
+      creation.strength += wins * virtue.strength;
+      creation.dexterity += wins * virtue.dexterity;
+      creation.intelligence += wins * virtue.intelligence;
+    }
+    if (choices != 7 || creation.score(state.winner()) == 50) {
+      throw new IllegalArgumentException("Saved character must have seven completed choices");
+    }
+    return creation;
+  }
+
   public Virtue option(int index) {
     if (complete()) {
       throw new IllegalStateException("Character creation is complete");

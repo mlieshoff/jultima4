@@ -93,6 +93,15 @@ public final class CharacterScreens {
     stage = Stage.PLAYING;
   }
 
+  void resume(CharacterCreation character) {
+    if (character == null || !character.complete()) {
+      throw new IllegalArgumentException("Cannot resume an unfinished character");
+    }
+    creation = character;
+    stage = Stage.PLAYING;
+    elapsed = 0;
+  }
+
   public void title() {
     creation = null;
     stage = Stage.TITLE;
