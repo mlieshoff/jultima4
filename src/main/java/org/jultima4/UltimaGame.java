@@ -27,6 +27,7 @@ public final class UltimaGame extends ApplicationAdapter {
   private Texture scrollingSheet;
   private final TextureRegion[] scrollingTiles = new TextureRegion[128];
   private final CombatAnimation combatAnimation = new CombatAnimation();
+  private final CharacterStats characterStats = new CharacterStats();
   private double animationSeconds;
   private DosGameData data;
   private CharacterScreens screens;
@@ -89,6 +90,7 @@ public final class UltimaGame extends ApplicationAdapter {
 
           @Override
           public boolean keyTyped(char character) {
+            if (characterStats.isOpen()) return true;
             if (directionCharacter != 0) {
               char suppressed = directionCharacter;
               directionCharacter = 0;
@@ -113,6 +115,7 @@ public final class UltimaGame extends ApplicationAdapter {
     if (screens.stage() != CharacterScreens.Stage.PLAYING) {
       return handleFrontKey(key);
     }
+    if (characterStats.handleKey(key, world.talking())) return true;
     if (key == Input.Keys.F5 || key == Input.Keys.F9) {
       if (world.talking() || world.battle() != null || combatAnimation.playing()) {
         saveMessage = "Finish combat or the conversation before saving or loading.";
@@ -221,6 +224,7 @@ public final class UltimaGame extends ApplicationAdapter {
     try {
       SaveGame.Loaded loaded = SaveGame.load(savePath, data);
       screens.resume(loaded.character());
+      characterStats.close();
       world = loaded.session();
       selectedAvatar = world.avatar();
       directionAction = null;
@@ -482,6 +486,7 @@ public final class UltimaGame extends ApplicationAdapter {
   }
 
   private void restart() {
+    characterStats.close();
     saveMessage = null;
     combatAnimation.clear();
     animationSeconds = 0;
@@ -501,13 +506,18 @@ public final class UltimaGame extends ApplicationAdapter {
     float delta = Math.max(0, Gdx.graphics.getDeltaTime());
     animationSeconds += delta;
     screens.update(delta);
-    combatAnimation.update(delta);
+    if (!characterStats.isOpen()) combatAnimation.update(delta);
     ScreenUtils.clear(0.025f, 0.035f, 0.055f, 1);
     viewport.apply();
     batch.setProjectionMatrix(viewport.getCamera().combined);
     batch.begin();
     if (screens.stage() != CharacterScreens.Stage.PLAYING) {
       renderFront();
+      batch.end();
+      return;
+    }
+    if (characterStats.isOpen()) {
+      renderCharacterStats();
       batch.end();
       return;
     }
@@ -561,7 +571,8 @@ public final class UltimaGame extends ApplicationAdapter {
         text(directionAction + ": choose a direction (arrows or WASD). Esc cancels.", 24, 60);
         text("Arrows/WASD choose direction", 24, 30);
       } else {
-        text("Move: arrows/WASD | F attack | E enter | X leave | T talk | O open", 24, 60);
+        text(
+            "Move: arrows/WASD | F attack | E enter | X leave | T talk | O open | Z stats", 24, 60);
         text(
             "K stairs | M contemplate | Space pass | F5 save | F9 load | R restart | Esc quit",
             24,
@@ -569,6 +580,22 @@ public final class UltimaGame extends ApplicationAdapter {
       }
     }
     batch.end();
+  }
+
+  private void renderCharacterStats() {
+    font.setColor(Color.GOLD);
+    text("ULTIMA IV / CHARACTER STATS", 50, 670);
+    font.setColor(Color.WHITE);
+    drawTile(31, 50, 560, 64);
+    var lines = characterStats.lines(screens.creation(), world.avatar());
+    for (int i = 0; i < 8; i++) text(lines.get(i), 50, 520 - i * 48);
+    font.setColor(Color.GOLD);
+    text("VIRTUES", 540, 580);
+    font.setColor(Color.WHITE);
+    for (int i = 8; i < lines.size(); i++) text(lines.get(i), 540, 520 - (i - 8) * 48);
+    font.setColor(Color.GOLD);
+    text("Z / Enter / Esc return to quest", 50, 80);
+    font.setColor(Color.WHITE);
   }
 
   private void renderCombat() {
@@ -642,7 +669,7 @@ public final class UltimaGame extends ApplicationAdapter {
     } else if (directionAction != null) {
       text("Attack: choose a direction (arrows/WASD) | Esc cancels", 24, 60);
     } else {
-      text("Arrows/WASD move | F then direction attack | Space pass", 24, 60);
+      text("Arrows/WASD move | F then direction attack | Space pass | Z stats", 24, 60);
       text("Walk off the battlefield to flee | R restart | Esc quit", 24, 30);
     }
   }
