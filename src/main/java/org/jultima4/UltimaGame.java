@@ -27,7 +27,9 @@ public final class UltimaGame extends ApplicationAdapter {
     private final CombatAnimation combatAnimation = new CombatAnimation();
     private double animationSeconds;
     private DosGameData data;
-    private CharacterCreation creation;
+    private CharacterScreens screens;
+    private Avatar selectedAvatar;
+    private final Texture[] frontPictures = new Texture[3];
     private GameSession world;
     private String directionAction;
     private char directionCharacter;
@@ -57,7 +59,9 @@ public final class UltimaGame extends ApplicationAdapter {
         sheet.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
         for (int i = 0; i < tiles.length; i++) tiles[i] = new TextureRegion(sheet, i % 16 * 16, i / 16 * 16, 16, 16);
         createScrollingTiles();
+        createFrontPictures();
         restart();
+        screens.title();
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) { return handleKey(key); }
             @Override public boolean keyTyped(char character) {
@@ -76,6 +80,7 @@ public final class UltimaGame extends ApplicationAdapter {
     }
 
     private boolean handleKey(int key) {
+        if (screens.stage() != CharacterScreens.Stage.PLAYING) return handleFrontKey(key);
         if (world != null && world.talking()) {
             switch (key) {
                 case Input.Keys.ESCAPE -> { world.endConversation(); question.setLength(0); }
@@ -93,15 +98,6 @@ public final class UltimaGame extends ApplicationAdapter {
         if (key == Input.Keys.R) { restart(); return true; }
         if (combatAnimation.playing()) return true;
         if (world != null && world.battle() != null) return handleCombatKey(key);
-        if (!creation.complete()) {
-            if (key != Input.Keys.A && key != Input.Keys.B) return false;
-            creation.choose(key == Input.Keys.A ? 0 : 1);
-            if (creation.complete()) {
-                try { world = GameSession.start(data, creation); }
-                catch (IOException ex) { throw new IllegalStateException("Cannot initialize combat data", ex); }
-            }
-            return true;
-        }
         int dx = 0, dy = 0;
         switch (key) {
             case Input.Keys.UP, Input.Keys.W -> dy = -1;
@@ -144,6 +140,91 @@ public final class UltimaGame extends ApplicationAdapter {
         return true;
     }
 
+    private boolean handleFrontKey(int key) {
+        switch (screens.stage()) {
+            case TITLE -> {
+                if (key == Input.Keys.ESCAPE) Gdx.app.exit();
+                else if (key == Input.Keys.N || key == Input.Keys.ENTER) screens.start();
+                else return false;
+            }
+            case CREATION -> {
+                if (key == Input.Keys.ESCAPE) screens.title();
+                else if (key == Input.Keys.R) restart();
+                else if (key == Input.Keys.A || key == Input.Keys.B) {
+                    screens.choose(key == Input.Keys.A ? 0 : 1);
+                    if (screens.stage() == CharacterScreens.Stage.SELECTION) {
+                        try { selectedAvatar = Avatar.from(screens.creation()); }
+                        catch (IOException ex) { throw new IllegalStateException("Cannot show starting character", ex); }
+                    }
+                }
+                else return false;
+            }
+            case SELECTION -> {
+                if (key == Input.Keys.ESCAPE) screens.title();
+                else if (key == Input.Keys.R || key == Input.Keys.BACKSPACE) restart();
+                else if (key == Input.Keys.ENTER) {
+                    try { world = GameSession.start(data, screens.creation()); }
+                    catch (IOException ex) { throw new IllegalStateException("Cannot initialize character", ex); }
+                    screens.confirm();
+                } else return false;
+            }
+            default -> { return false; }
+        }
+        return true;
+    }
+
+    private void createFrontPictures() {
+        String[] names = {"TITLE", "GYPSY", "WAGON"};
+        for (int i = 0; i < names.length; i++) {
+            EgaPicture picture;
+            try { picture = EgaPicture.load(names[i]); }
+            catch (IOException ex) { throw new IllegalStateException("Cannot load " + names[i] + " background", ex); }
+            Pixmap pixels = new Pixmap(EgaPicture.WIDTH, EgaPicture.HEIGHT, Pixmap.Format.RGBA8888);
+            try {
+                for (int y = 0; y < EgaPicture.HEIGHT; y++) {
+                    for (int x = 0; x < EgaPicture.WIDTH; x++) pixels.drawPixel(x, y, picture.rgba(x, y));
+                }
+                frontPictures[i] = new Texture(pixels);
+                frontPictures[i].setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
+            } finally { pixels.dispose(); }
+        }
+    }
+
+    private void renderFront() {
+        CharacterScreens.Stage stage = screens.stage();
+        int background = stage == CharacterScreens.Stage.TITLE ? 0 : stage == CharacterScreens.Stage.CREATION ? 1 : 2;
+        batch.setColor(Color.WHITE);
+        batch.draw(frontPictures[background], 20, 100, 960, 600);
+        font.setColor(Color.GOLD);
+        if (stage == CharacterScreens.Stage.TITLE) {
+            font.draw(batch, "Begin a new quest", 44, 350, 912, 1, false);
+            font.setColor(Color.WHITE);
+            font.draw(batch, "N / Enter - Create a character", 44, 295, 912, 1, false);
+            font.draw(batch, "Esc - Quit", 44, 240, 912, 1, false);
+            text("Ultima IV / Quest of the Avatar", 24, 50);
+        } else if (stage == CharacterScreens.Stage.CREATION) {
+            CharacterCreation creation = screens.creation();
+            text("The Gypsy asks / Choice " + (creation.choices() + 1) + " of 7", 50, 235);
+            font.setColor(Color.WHITE);
+            text("A: " + creation.option(0), 50, 195);
+            text("B: " + creation.option(1), 510, 195);
+            text("STR " + creation.strength() + "   DEX " + creation.dexterity() + "   INT " + creation.intelligence(), 50, 155);
+            text("Which virtue guides thy heart?", 510, 155);
+            text("A/B choose | R start over | Esc title", 24, 50);
+        } else {
+            CharacterCreation creation = screens.creation();
+            Avatar avatar = selectedAvatar;
+            text("Thy path: " + creation.winner().characterClass + " / " + creation.winner(), 50, 235);
+            font.setColor(Color.WHITE);
+            text("STR " + creation.strength() + "   DEX " + creation.dexterity() + "   INT " + creation.intelligence(), 50, 195);
+            text("HP " + avatar.maximumHealth() + "   XP " + avatar.experience(), 50, 155);
+            text("Weapon: " + avatar.weapon().displayName, 510, 195);
+            text("Britannia: " + creation.startingX() + ", " + creation.startingY(), 510, 155);
+            drawTile(31, 880, 158, 64);
+            text("Enter begin quest | R / Backspace choose again | Esc title", 24, 50);
+        }
+    }
+
     private boolean handleCombatKey(int key) {
         if (world.battle().outcome() != Battle.Outcome.ACTIVE) {
             if (key == Input.Keys.ENTER && world.battle().outcome() != Battle.Outcome.DEFEAT) {
@@ -183,8 +264,10 @@ public final class UltimaGame extends ApplicationAdapter {
     private void restart() {
         combatAnimation.clear();
         animationSeconds = 0;
-        creation = new CharacterCreation(new Random());
+        if (screens == null) screens = new CharacterScreens(new Random());
+        screens.start();
         world = null;
+        selectedAvatar = null;
         directionAction = null;
         directionCharacter = 0;
         question.setLength(0);
@@ -198,19 +281,15 @@ public final class UltimaGame extends ApplicationAdapter {
         viewport.apply();
         batch.setProjectionMatrix(viewport.getCamera().combined);
         batch.begin();
+        if (screens.stage() != CharacterScreens.Stage.PLAYING) {
+            renderFront();
+            batch.end();
+            return;
+        }
         font.setColor(Color.GOLD);
         text("ULTIMA IV / Quest of the Avatar", 24, 690);
         font.setColor(Color.WHITE);
-        if (!creation.complete()) {
-            text("Character creation - choice " + (creation.choices() + 1) + " of 7", 60, 580);
-            text("Choose the virtue you value more:", 60, 520);
-            text("A: " + creation.option(0), 60, 460);
-            text("B: " + creation.option(1), 60, 410);
-            text("STR " + creation.strength() + "   DEX " + creation.dexterity() + "   INT " + creation.intelligence(), 60, 330);
-            text("Seven choices determine thy class and starting place in Britannia.", 60, 250);
-            text("Simplified prompts; stat tables follow the decompiled NEWGAME.", 60, 210);
-            text("A/B choose | R restart | Esc quit", 24, 30);
-        } else if (world.battle() != null) {
+        if (world.battle() != null) {
             renderCombat();
         } else {
             for (int row = 0; row < 15; row++) {
@@ -222,8 +301,8 @@ public final class UltimaGame extends ApplicationAdapter {
             }
             drawTile(31, 24 + 7 * 38, 620 - 7 * 38, 38);
             text(world.locationName(), 24, 665);
-            text("Avatar: " + creation.winner().characterClass, 620, 630);
-            text("STR " + creation.strength() + " DEX " + creation.dexterity() + " INT " + creation.intelligence(), 620, 595);
+            text("Avatar: " + screens.creation().winner().characterClass, 620, 630);
+            text("STR " + screens.creation().strength() + " DEX " + screens.creation().dexterity() + " INT " + screens.creation().intelligence(), 620, 595);
             text("HP " + world.avatar().health() + "/" + world.avatar().maximumHealth() + "  XP " + world.avatar().experience(), 620, 560);
             text("Weapon: " + world.avatar().weapon().displayName, 620, 530);
             text("Position: " + world.x() + ", " + world.y(), 620, 500);
@@ -287,7 +366,7 @@ public final class UltimaGame extends ApplicationAdapter {
         } else if (battle.outcome() != Battle.Outcome.FLED) {
             drawTile(world.avatar().defeated() ? 56 : 31, 44 + battle.x() * 48, 590 - battle.y() * 48, 48);
         }
-        text("Avatar: " + creation.winner().characterClass, 620, 630);
+        text("Avatar: " + screens.creation().winner().characterClass, 620, 630);
         text("HP " + world.avatar().health() + "/" + world.avatar().maximumHealth(), 620, 595);
         text("XP " + world.avatar().experience(), 620, 560);
         text("Weapon: " + world.avatar().weapon().displayName, 620, 525);
@@ -339,7 +418,7 @@ public final class UltimaGame extends ApplicationAdapter {
     }
 
     private void drawTile(int tile, float x, float y, float size) {
-        if (tile == 31) tile = 32 + creation.winner().ordinal() * 2;
+        if (tile == 31) tile = 32 + screens.creation().winner().ordinal() * 2;
         int slot = TileAnimation.scrollSlot(tile);
         TextureRegion region = slot < 0 ? tiles[TileAnimation.frame(tile, animationSeconds)] :
             scrollingTiles[slot * 16 + TileAnimation.scrollOffset(animationSeconds)];
@@ -370,5 +449,6 @@ public final class UltimaGame extends ApplicationAdapter {
         if (font != null) font.dispose();
         if (sheet != null) sheet.dispose();
         if (scrollingSheet != null) scrollingSheet.dispose();
+        for (Texture picture : frontPictures) if (picture != null) picture.dispose();
     }
 }

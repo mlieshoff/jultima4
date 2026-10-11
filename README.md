@@ -19,12 +19,19 @@ mvn dependency:copy-dependencies
 java -XstartOnFirstThread -cp 'target/classes:target/dependency/*' org.jultima4.DesktopLauncher
 ```
 
+On the title screen, press N or Enter to begin a new quest.
 Choose A or B for seven virtue pairs. Your final virtue determines your class
 and starting position in Britannia. Prompts still use virtue names rather than
-the original dilemmas.
+the original dilemmas. After the seventh choice, review your selected class,
+starting stats and equipment; Enter begins the quest, R or Backspace starts
+character creation again, and Escape returns to the title.
 
 | Control | Action |
 | --- | --- |
+| N / Enter on title | Start character creation |
+| A / B during creation | Choose a virtue |
+| Enter on class selection | Confirm character and begin the quest |
+| R / Backspace on class selection | Start character creation again |
 | Arrows / WASD | Move one tile |
 | E | Enter the town or castle beneath the Avatar |
 | X | Leave the current town; walking off its edge also leaves |
@@ -39,7 +46,7 @@ the original dilemmas.
 | Enter after victory / fleeing | Return to Britannia |
 | Space | Pass a turn |
 | R | Restart character creation (discards the session) |
-| Escape | Cancel a direction prompt, or quit when exploring |
+| Escape | Return to title from creation/selection; cancel a direction prompt, or quit when exploring |
 
 A Bard begins near Britain at (83,105); Britain is at (82,106). Stand on the
 town and press E. Castle Britannia is nearby at (86,107). Other classes start
@@ -47,6 +54,9 @@ near their respective towns, matching the decompiled starting-coordinate table.
 
 ## Implemented data and behavior
 
+* Original DOS `TITLE.EGA`, `GYPSY.EGA`, and `WAGON.EGA` backgrounds for the
+  title, character creation, and class confirmation screens, with nearest-neighbor
+  scaling. Their fixed 12-bit hashed LZW data is decoded directly in Java.
 * Actual 256x256 Britannia map from `WORLD.MAP`, including world-edge wrapping.
 * All 256 EGA tiles decoded directly from `SHAPES.EGA`, with nearest-neighbor
   scaling.
@@ -77,7 +87,7 @@ near their respective towns, matching the decompiled starting-coordinate table.
   points per choice.
 
 Maven packages the world map, EGA shapes, town maps, dialogue, combat maps, and
-new-party template as classpath resources. The supplied `COMPILED` folder is retained in Git as requested.
+new-party template and the three front-screen backgrounds as classpath resources. The supplied `COMPILED` folder is retained in Git as requested.
 The DOS executables, drivers, documents, dungeon data, and saves remain
 in the source folder; they are not executed or altered by the Java game.
 Existing save files are not loaded; `PARTY.NEW` supplies only initial character
@@ -144,6 +154,17 @@ continues outside sight; sight does not change the existing enemy AI.
   weapon ranges/damage, hit checks,
   and damage rolls. The Java implementation is new and covers the subset above.
 
+* [XU4 picture format notes](https://github.com/xu4-engine/u4/blob/master/doc/FileFormats.md)
+  identify the compressed title/intro pictures. The documented fixed 12-bit
+  dictionary hashing in [the LZW decoder](https://github.com/xu4-engine/u4/blob/master/src/lzw/lzw.c)
+  and [hash definitions](https://github.com/xu4-engine/u4/blob/master/src/lzw/hash.c)
+  supplies format evidence for the new Java reader. This increment does not
+  recreate the complete animated introduction or original dilemma text.
+
+Picture tests cover literal/dictionary decoding, new-word references, collision
+probing, malformed/truncated streams, size bounds, and actual picture loading.
+Screen-flow tests cover title navigation, seven virtue choices, class confirmation,
+restart, and invalid actions.
 Visibility tests cover opaque terrain, all ray directions, shallow/steep rays,
 ray symmetry, diagonal corners, door opening, NPC occlusion, world-edge wrapping,
 viewport bounds, combat visibility, and ranged attacks blocked by forests.
