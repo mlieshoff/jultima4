@@ -12,29 +12,43 @@ public record CombatMap(String name, byte[] terrain, List<Position> monsterStart
     public static final int SIZE = 11;
     public record Position(int x, int y) {
         public Position {
-            if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) throw new IllegalArgumentException("Invalid combat position");
+            if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) {
+                throw new IllegalArgumentException("Invalid combat position");
+            }
         }
     }
 
     public CombatMap {
-        if (terrain.length != SIZE * SIZE) throw new IllegalArgumentException("Combat map must contain 121 tiles");
+        if (terrain.length != SIZE * SIZE) {
+            throw new IllegalArgumentException("Combat map must contain 121 tiles");
+        }
         terrain = terrain.clone();
         monsterStarts = List.copyOf(monsterStarts);
-        if (monsterStarts.size() != 16) throw new IllegalArgumentException("Combat map must contain sixteen monster starts");
+        if (monsterStarts.size() != 16) {
+            throw new IllegalArgumentException("Combat map must contain sixteen monster starts");
+        }
     }
 
-    @Override public byte[] terrain() { return terrain.clone(); }
+    @Override public byte[] terrain() {
+        return terrain.clone();
+    }
 
     public static CombatMap decode(String name, byte[] data) {
-        if (data.length != 192) throw new IllegalArgumentException("CON must contain 192 bytes");
+        if (data.length != 192) {
+            throw new IllegalArgumentException("CON must contain 192 bytes");
+        }
         List<Position> starts = new ArrayList<>();
-        for (int i = 0; i < 16; i++) starts.add(new Position(Byte.toUnsignedInt(data[i]), Byte.toUnsignedInt(data[16 + i])));
+        for (int i = 0; i < 16; i++) {
+            starts.add(new Position(Byte.toUnsignedInt(data[i]), Byte.toUnsignedInt(data[16 + i])));
+        }
         return new CombatMap(name, Arrays.copyOfRange(data, 64, 185), starts,
             new Position(Byte.toUnsignedInt(data[32]), Byte.toUnsignedInt(data[40])));
     }
 
     public int tile(int x, int y) {
-        if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) return 126;
+        if (x < 0 || y < 0 || x >= SIZE || y >= SIZE) {
+            return 126;
+        }
         return Byte.toUnsignedInt(terrain[y * SIZE + x]);
     }
 

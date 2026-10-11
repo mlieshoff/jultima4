@@ -15,7 +15,9 @@ public enum MonsterType {
         this.experience = experience;
     }
 
-    int initialHealth(Random random) { return Math.max(24, random.nextInt(baseHealth) | baseHealth / 2); }
+    int initialHealth(Random random) {
+        return Math.max(24, random.nextInt(baseHealth) | baseHealth / 2);
+    }
     int damage(Random random) {
         int roll = random.nextInt(baseHealth / 4);
         return (roll >> 4) * 10 + roll % 10;

@@ -59,18 +59,24 @@ public final class UltimaGame extends ApplicationAdapter {
             pixels.dispose();
         }
         sheet.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
-        for (int i = 0; i < tiles.length; i++) tiles[i] = new TextureRegion(sheet, i % 16 * 16, i / 16 * 16, 16, 16);
+        for (int i = 0; i < tiles.length; i++) {
+            tiles[i] = new TextureRegion(sheet, i % 16 * 16, i / 16 * 16, 16, 16);
+        }
         createScrollingTiles();
         createFrontPictures();
         restart();
         screens.intro();
         Gdx.input.setInputProcessor(new InputAdapter() {
-            @Override public boolean keyDown(int key) { return handleKey(key); }
+            @Override public boolean keyDown(int key) {
+                return handleKey(key);
+            }
             @Override public boolean keyTyped(char character) {
                 if (directionCharacter != 0) {
                     char suppressed = directionCharacter;
                     directionCharacter = 0;
-                    if (Character.toLowerCase(character) == suppressed) return true;
+                    if (Character.toLowerCase(character) == suppressed) {
+                        return true;
+                    }
                 }
                 if (world != null && world.talking() && character >= 32 && character <= 126 && question.length() < 40) {
                     question.append(character);
@@ -82,32 +88,50 @@ public final class UltimaGame extends ApplicationAdapter {
     }
 
     private boolean handleKey(int key) {
-        if (screens.stage() != CharacterScreens.Stage.PLAYING) return handleFrontKey(key);
+        if (screens.stage() != CharacterScreens.Stage.PLAYING) {
+            return handleFrontKey(key);
+        }
         if (world != null && world.talking()) {
             switch (key) {
-                case Input.Keys.ESCAPE -> { world.endConversation(); question.setLength(0); }
-                case Input.Keys.ENTER -> { world.ask(question.toString()); question.setLength(0); }
-                case Input.Keys.BACKSPACE -> { if (!question.isEmpty()) question.setLength(question.length() - 1); }
-                default -> { return false; }
+                case Input.Keys.ESCAPE -> {
+                    world.endConversation();
+                    question.setLength(0);
+                }
+                case Input.Keys.ENTER -> {
+                    world.ask(question.toString());
+                    question.setLength(0);
+                }
+                case Input.Keys.BACKSPACE -> {
+                    if (!question.isEmpty()) {
+                        question.setLength(question.length() - 1);
+                    }
+                }
+                default -> {
+                    return false;
+                }
             }
             return true;
         }
         if (key == Input.Keys.ESCAPE) {
-            if (directionAction != null) directionAction = null;
-            else Gdx.app.exit();
+            if (directionAction != null) {
+                directionAction = null;
+            } else {
+                Gdx.app.exit();
+            }
             return true;
         }
-        if (key == Input.Keys.R) { restart(); return true; }
-        if (combatAnimation.playing()) return true;
-        if (world != null && world.battle() != null) return handleCombatKey(key);
-        int dx = 0, dy = 0;
-        switch (key) {
-            case Input.Keys.UP, Input.Keys.W -> dy = -1;
-            case Input.Keys.DOWN, Input.Keys.S -> dy = 1;
-            case Input.Keys.LEFT, Input.Keys.A -> dx = -1;
-            case Input.Keys.RIGHT, Input.Keys.D -> dx = 1;
-            default -> { }
+        if (key == Input.Keys.R) {
+            restart();
+            return true;
         }
+        if (combatAnimation.playing()) {
+            return true;
+        }
+        if (world != null && world.battle() != null) {
+            return handleCombatKey(key);
+        }
+        int dx = horizontalStep(key);
+        int dy = verticalStep(key);
         if (dx != 0 || dy != 0) {
             if ("Talk".equals(directionAction)) {
                 world.talk(dx, dy);
@@ -120,14 +144,19 @@ public final class UltimaGame extends ApplicationAdapter {
                         default -> 0;
                     };
                 }
+            } else if ("Open".equals(directionAction)) {
+                world.openDoor(dx, dy);
+            } else if ("Attack".equals(directionAction)) {
+                world.attack(dx, dy);
+            } else {
+                world.move(dx, dy);
             }
-            else if ("Open".equals(directionAction)) world.openDoor(dx, dy);
-            else if ("Attack".equals(directionAction)) world.attack(dx, dy);
-            else world.move(dx, dy);
             directionAction = null;
             return true;
         }
-        if (directionAction != null) return false;
+        if (directionAction != null) {
+            return false;
+        }
         switch (key) {
             case Input.Keys.E -> world.enter();
             case Input.Keys.X -> world.leave();
@@ -137,69 +166,126 @@ public final class UltimaGame extends ApplicationAdapter {
             case Input.Keys.O -> directionAction = "Open";
             case Input.Keys.SPACE -> world.pass();
             case Input.Keys.M -> world.meditate();
-            default -> { return false; }
+            default -> {
+                return false;
+            }
         }
         return true;
+    }
+
+    private static int horizontalStep(int key) {
+        return switch (key) {
+            case Input.Keys.LEFT, Input.Keys.A -> -1;
+            case Input.Keys.RIGHT, Input.Keys.D -> 1;
+            default -> 0;
+        };
+    }
+
+    private static int verticalStep(int key) {
+        return switch (key) {
+            case Input.Keys.UP, Input.Keys.W -> -1;
+            case Input.Keys.DOWN, Input.Keys.S -> 1;
+            default -> 0;
+        };
     }
 
     private boolean handleFrontKey(int key) {
         switch (screens.stage()) {
             case SIGNATURE, ORIGIN -> {
-                if (key == Input.Keys.ESCAPE) screens.title();
-                else if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) screens.advanceIntro();
-                else return false;
+                if (key == Input.Keys.ESCAPE) {
+                    screens.title();
+                } else if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) {
+                    screens.advanceIntro();
+                } else {
+                    return false;
+                }
             }
             case TITLE -> {
-                if (key == Input.Keys.ESCAPE) Gdx.app.exit();
-                else if (key == Input.Keys.N || key == Input.Keys.ENTER) screens.start();
-                else if (key == Input.Keys.I) screens.intro();
-                else return false;
+                if (key == Input.Keys.ESCAPE) {
+                    Gdx.app.exit();
+                } else if (key == Input.Keys.N || key == Input.Keys.ENTER) {
+                    screens.start();
+                } else if (key == Input.Keys.I) {
+                    screens.intro();
+                } else {
+                    return false;
+                }
             }
             case CREATION -> {
-                if (key == Input.Keys.ESCAPE) screens.title();
-                else if (key == Input.Keys.R) restart();
-                else if (key == Input.Keys.A || key == Input.Keys.B) {
+                if (key == Input.Keys.ESCAPE) {
+                    screens.title();
+                } else if (key == Input.Keys.R) {
+                    restart();
+                } else if (key == Input.Keys.A || key == Input.Keys.B) {
                     screens.choose(key == Input.Keys.A ? 0 : 1);
                     if (screens.stage() == CharacterScreens.Stage.SELECTION) {
-                        try { selectedAvatar = Avatar.from(screens.creation()); }
-                        catch (IOException ex) { throw new IllegalStateException("Cannot show starting character", ex); }
+                        try {
+                            selectedAvatar = Avatar.from(screens.creation());
+                        } catch (IOException ex) {
+                            throw new IllegalStateException("Cannot show starting character", ex);
+                        }
                     }
+                } else {
+                    return false;
                 }
-                else return false;
             }
             case SELECTION -> {
-                if (key == Input.Keys.ESCAPE) screens.title();
-                else if (key == Input.Keys.R || key == Input.Keys.BACKSPACE) restart();
-                else if (key == Input.Keys.ENTER) {
-                    try { world = GameSession.start(data, screens.creation()); }
-                    catch (IOException ex) { throw new IllegalStateException("Cannot initialize character", ex); }
+                if (key == Input.Keys.ESCAPE) {
+                    screens.title();
+                } else if (key == Input.Keys.R || key == Input.Keys.BACKSPACE) {
+                    restart();
+                } else if (key == Input.Keys.ENTER) {
+                    try {
+                        world = GameSession.start(data, screens.creation());
+                    } catch (IOException ex) {
+                        throw new IllegalStateException("Cannot initialize character", ex);
+                    }
                     screens.confirm();
-                } else return false;
+                } else {
+                    return false;
+                }
             }
-            default -> { return false; }
+            default -> {
+                return false;
+            }
         }
         return true;
     }
 
     private void createFrontPictures() {
-        try { signature = LordBritishSignature.load(); }
-        catch (IOException ex) { throw new IllegalStateException("Cannot load Lord British signature", ex); }
+        try {
+            signature = LordBritishSignature.load();
+        } catch (IOException ex) {
+            throw new IllegalStateException("Cannot load Lord British signature", ex);
+        }
         Pixmap pen = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
-        try { pen.setColor(Color.WHITE); pen.fill(); penPixel = new Texture(pen); }
-        finally { pen.dispose(); }
+        try {
+            pen.setColor(Color.WHITE);
+            pen.fill();
+            penPixel = new Texture(pen);
+        } finally {
+            pen.dispose();
+        }
         String[] names = {"TITLE", "GYPSY", "WAGON"};
         for (int i = 0; i < names.length; i++) {
             EgaPicture picture;
-            try { picture = EgaPicture.load(names[i]); }
-            catch (IOException ex) { throw new IllegalStateException("Cannot load " + names[i] + " background", ex); }
+            try {
+                picture = EgaPicture.load(names[i]);
+            } catch (IOException ex) {
+                throw new IllegalStateException("Cannot load " + names[i] + " background", ex);
+            }
             Pixmap pixels = new Pixmap(EgaPicture.WIDTH, EgaPicture.HEIGHT, Pixmap.Format.RGBA8888);
             try {
                 for (int y = 0; y < EgaPicture.HEIGHT; y++) {
-                    for (int x = 0; x < EgaPicture.WIDTH; x++) pixels.drawPixel(x, y, picture.rgba(x, y));
+                    for (int x = 0; x < EgaPicture.WIDTH; x++) {
+                        pixels.drawPixel(x, y, picture.rgba(x, y));
+                    }
                 }
                 frontPictures[i] = new Texture(pixels);
                 frontPictures[i].setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
-            } finally { pixels.dispose(); }
+            } finally {
+                pixels.dispose();
+            }
         }
     }
 
@@ -213,33 +299,44 @@ public final class UltimaGame extends ApplicationAdapter {
         batch.setColor(Color.WHITE);
         batch.draw(frontPictures[background], 20, 100, 960, 600);
         font.setColor(Color.GOLD);
-        if (stage == CharacterScreens.Stage.TITLE) {
-            font.draw(batch, "Begin a new quest", 44, 350, 912, 1, false);
-            font.setColor(Color.WHITE);
-            font.draw(batch, "N / Enter - Create a character", 44, 295, 912, 1, false);
-            font.draw(batch, "Esc - Quit", 44, 240, 912, 1, false);
-            text("I replay introduction | N / Enter new quest | Esc quit", 24, 50);
-        } else if (stage == CharacterScreens.Stage.CREATION) {
-            CharacterCreation creation = screens.creation();
-            text("The Gypsy asks / Choice " + (creation.choices() + 1) + " of 7", 50, 235);
-            font.setColor(Color.WHITE);
-            text("A: " + creation.option(0), 50, 195);
-            text("B: " + creation.option(1), 510, 195);
-            text("STR " + creation.strength() + "   DEX " + creation.dexterity() + "   INT " + creation.intelligence(), 50, 155);
-            text("Which virtue guides thy heart?", 510, 155);
-            text("A/B choose | R start over | Esc title", 24, 50);
-        } else {
-            CharacterCreation creation = screens.creation();
-            Avatar avatar = selectedAvatar;
-            text("Thy path: " + creation.winner().characterClass + " / " + creation.winner(), 50, 235);
-            font.setColor(Color.WHITE);
-            text("STR " + creation.strength() + "   DEX " + creation.dexterity() + "   INT " + creation.intelligence(), 50, 195);
-            text("HP " + avatar.maximumHealth() + "   XP " + avatar.experience(), 50, 155);
-            text("Weapon: " + avatar.weapon().displayName, 510, 195);
-            text("Britannia: " + creation.startingX() + ", " + creation.startingY(), 510, 155);
-            drawTile(31, 880, 158, 64);
-            text("Enter begin quest | R / Backspace choose again | Esc title", 24, 50);
+        switch (stage) {
+            case TITLE -> renderTitle();
+            case CREATION -> renderCharacterChoices();
+            case SELECTION -> renderSelectedCharacter();
+            default -> throw new IllegalStateException("Unexpected front screen: " + stage);
         }
+    }
+
+    private void renderTitle() {
+        font.draw(batch, "Begin a new quest", 44, 350, 912, 1, false);
+        font.setColor(Color.WHITE);
+        font.draw(batch, "N / Enter - Create a character", 44, 295, 912, 1, false);
+        font.draw(batch, "Esc - Quit", 44, 240, 912, 1, false);
+        text("I replay introduction | N / Enter new quest | Esc quit", 24, 50);
+    }
+
+    private void renderCharacterChoices() {
+        CharacterCreation creation = screens.creation();
+        text("The Gypsy asks / Choice " + (creation.choices() + 1) + " of 7", 50, 235);
+        font.setColor(Color.WHITE);
+        text("A: " + creation.option(0), 50, 195);
+        text("B: " + creation.option(1), 510, 195);
+        text("STR " + creation.strength() + "   DEX " + creation.dexterity() + "   INT " + creation.intelligence(), 50, 155);
+        text("Which virtue guides thy heart?", 510, 155);
+        text("A/B choose | R start over | Esc title", 24, 50);
+    }
+
+    private void renderSelectedCharacter() {
+        CharacterCreation creation = screens.creation();
+        Avatar avatar = selectedAvatar;
+        text("Thy path: " + creation.winner().characterClass + " / " + creation.winner(), 50, 235);
+        font.setColor(Color.WHITE);
+        text("STR " + creation.strength() + "   DEX " + creation.dexterity() + "   INT " + creation.intelligence(), 50, 195);
+        text("HP " + avatar.maximumHealth() + "   XP " + avatar.experience(), 50, 155);
+        text("Weapon: " + avatar.weapon().displayName, 510, 195);
+        text("Britannia: " + creation.startingX() + ", " + creation.startingY(), 510, 155);
+        drawTile(31, 880, 158, 64);
+        text("Enter begin quest | R / Backspace choose again | Esc title", 24, 50);
     }
 
     private void renderIntro(CharacterScreens.Stage stage) {
@@ -273,24 +370,26 @@ public final class UltimaGame extends ApplicationAdapter {
             }
             return false;
         }
-        int dx = 0, dy = 0;
-        switch (key) {
-            case Input.Keys.UP, Input.Keys.W -> dy = -1;
-            case Input.Keys.DOWN, Input.Keys.S -> dy = 1;
-            case Input.Keys.LEFT, Input.Keys.A -> dx = -1;
-            case Input.Keys.RIGHT, Input.Keys.D -> dx = 1;
-            default -> { }
-        }
+        int dx = horizontalStep(key);
+        int dy = verticalStep(key);
         if (dx != 0 || dy != 0) {
             combatAnimation.capture(world.battle());
-            if ("Attack".equals(directionAction)) world.attack(dx, dy);
-            else world.move(dx, dy);
+            if ("Attack".equals(directionAction)) {
+                world.attack(dx, dy);
+            } else {
+                world.move(dx, dy);
+            }
             combatAnimation.play(world.battle().events());
             directionAction = null;
             return true;
         }
-        if (directionAction != null) return false;
-        if (key == Input.Keys.F) { directionAction = "Attack"; return true; }
+        if (directionAction != null) {
+            return false;
+        }
+        if (key == Input.Keys.F) {
+            directionAction = "Attack";
+            return true;
+        }
         if (key == Input.Keys.SPACE) {
             combatAnimation.capture(world.battle());
             world.pass();
@@ -303,7 +402,9 @@ public final class UltimaGame extends ApplicationAdapter {
     private void restart() {
         combatAnimation.clear();
         animationSeconds = 0;
-        if (screens == null) screens = new CharacterScreens(new Random());
+        if (screens == null) {
+            screens = new CharacterScreens(new Random());
+        }
         screens.start();
         world = null;
         selectedAvatar = null;
@@ -382,14 +483,16 @@ public final class UltimaGame extends ApplicationAdapter {
         for (int row = 0; row < 11; row++) {
             for (int col = 0; col < 11; col++) {
                 int tile = battle.visibleFrom(observerX, observerY, col, row) ?
-                    (combatAnimation.playing() ? battle.groundTile(col, row) : battle.tile(col, row)) : 126;
+                (combatAnimation.playing() ? battle.groundTile(col, row) : battle.tile(col, row)) : 126;
                 drawTile(tile,
-                    44 + col * 48, 590 - row * 48, 48);
+                44 + col * 48, 590 - row * 48, 48);
             }
         }
         if (combatAnimation.playing()) {
             for (CombatAnimation.Sprite sprite : combatAnimation.sprites()) {
-                if (sprite.tile() != 31 && !battle.visibleFrom(observerX, observerY, Math.round(sprite.x()), Math.round(sprite.y()))) continue;
+                if (sprite.tile() != 31 && !battle.visibleFrom(observerX, observerY, Math.round(sprite.x()), Math.round(sprite.y()))) {
+                    continue;
+                }
                 batch.setColor(1, 1, 1, sprite.alpha());
                 drawTile(sprite.tile(), 44 + sprite.x() * 48, 590 - sprite.y() * 48, 48);
             }
@@ -440,7 +543,9 @@ public final class UltimaGame extends ApplicationAdapter {
         try {
             for (int tile = 0; tile < 256; tile++) {
                 int slot = TileAnimation.scrollSlot(tile);
-                if (slot < 0) continue;
+                if (slot < 0) {
+                    continue;
+                }
                 for (int offset = 0; offset < 16; offset++) {
                     for (int y = 0; y < 16; y++) {
                         for (int x = 0; x < 16; x++) {
@@ -450,7 +555,9 @@ public final class UltimaGame extends ApplicationAdapter {
                 }
             }
             scrollingSheet = new Texture(pixels);
-        } finally { pixels.dispose(); }
+        } finally {
+            pixels.dispose();
+        }
         scrollingSheet.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
         for (int i = 0; i < scrollingTiles.length; i++) {
             scrollingTiles[i] = new TextureRegion(scrollingSheet, i % 16 * 16, i / 16 * 16, 16, 16);
@@ -458,7 +565,9 @@ public final class UltimaGame extends ApplicationAdapter {
     }
 
     private void drawTile(int tile, float x, float y, float size) {
-        if (tile == 31) tile = 32 + screens.creation().winner().ordinal() * 2;
+        if (tile == 31) {
+            tile = 32 + screens.creation().winner().ordinal() * 2;
+        }
         int slot = TileAnimation.scrollSlot(tile);
         TextureRegion region = slot < 0 ? tiles[TileAnimation.frame(tile, animationSeconds)] :
             scrollingTiles[slot * 16 + TileAnimation.scrollOffset(animationSeconds)];
@@ -482,14 +591,34 @@ public final class UltimaGame extends ApplicationAdapter {
         }
     }
 
-    private void text(String text, float x, float y) { font.draw(batch, text, x, y); }
-    @Override public void resize(int width, int height) { viewport.update(width, height, true); }
+    private void text(String text, float x, float y) {
+        font.draw(batch, text, x, y);
+    }
+
+    @Override public void resize(int width, int height) {
+        viewport.update(width, height, true);
+    }
+
     @Override public void dispose() {
-        if (batch != null) batch.dispose();
-        if (font != null) font.dispose();
-        if (sheet != null) sheet.dispose();
-        if (scrollingSheet != null) scrollingSheet.dispose();
-        if (penPixel != null) penPixel.dispose();
-        for (Texture picture : frontPictures) if (picture != null) picture.dispose();
+        if (batch != null) {
+            batch.dispose();
+        }
+        if (font != null) {
+            font.dispose();
+        }
+        if (sheet != null) {
+            sheet.dispose();
+        }
+        if (scrollingSheet != null) {
+            scrollingSheet.dispose();
+        }
+        if (penPixel != null) {
+            penPixel.dispose();
+        }
+        for (Texture picture : frontPictures) {
+            if (picture != null) {
+                picture.dispose();
+            }
+        }
     }
 }

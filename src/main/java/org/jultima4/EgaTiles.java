@@ -11,11 +11,15 @@ public final class EgaTiles {
     private final byte[] data;
 
     public EgaTiles(byte[] data) {
-        if (data.length != 32768) throw new IllegalArgumentException("SHAPES.EGA must contain 32768 bytes");
+        if (data.length != 32768) {
+            throw new IllegalArgumentException("SHAPES.EGA must contain 32768 bytes");
+        }
         this.data = data.clone();
     }
 
-    static int palette(int color) { return PALETTE[color]; }
+    static int palette(int color) {
+        return PALETTE[color];
+    }
 
     public int rgba(int tile, int x, int y) {
         if (tile < 0 || tile > 255 || x < 0 || x > 15 || y < 0 || y > 15) {

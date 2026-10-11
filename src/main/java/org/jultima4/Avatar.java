@@ -10,8 +10,14 @@ public final class Avatar {
         SLING("Sling", 10, 32), MACE("Mace", 1, 40), AXE("Axe", 1, 48), SWORD("Sword", 1, 64);
         public final String displayName;
         public final int range, damage;
-        Weapon(String name, int range, int damage) { displayName = name; this.range = range; this.damage = damage; }
+        Weapon(String name, int range, int damage) {
+            displayName = name;
+            this.range = range;
+            this.damage = damage;
+        }
     }
+
+    private static final int[] ARMOR_DEFENSES = {96, 128, 144, 160};
 
     private final int maximumHealth, strength, dexterity, defense;
     private int health, experience;
@@ -35,37 +41,66 @@ public final class Avatar {
     }
 
     static Avatar fromTemplate(CharacterCreation creation, byte[] data) {
-        if (data.length != 502) throw new IllegalArgumentException("PARTY.NEW must contain 502 bytes");
+        if (data.length != 502) {
+            throw new IllegalArgumentException("PARTY.NEW must contain 502 bytes");
+        }
         int record = 8 + creation.winner().ordinal() * 39;
         int weapon = word(data, record + 16), armor = word(data, record + 18);
         if (weapon >= Weapon.values().length || armor > 3 || data[record + 37] != creation.winner().ordinal()) {
             throw new IllegalArgumentException("Unsupported starting equipment or class in PARTY.NEW");
         }
-        int[] defenses = {96, 128, 144, 160};
         return new Avatar(word(data, record + 2), creation.strength(), creation.dexterity(),
-            Weapon.values()[weapon], defenses[armor], word(data, record + 4));
+            Weapon.values()[weapon], ARMOR_DEFENSES[armor], word(data, record + 4));
     }
 
     private static int word(byte[] data, int offset) {
         return Byte.toUnsignedInt(data[offset]) | Byte.toUnsignedInt(data[offset + 1]) << 8;
     }
 
-    public int health() { return health; }
-    public int maximumHealth() { return maximumHealth; }
-    public int experience() { return experience; }
-    public int defense() { return defense; }
-    public int attackBonus() { return dexterity >= 40 ? 255 : dexterity; }
-    public Weapon weapon() { return weapon; }
-    public boolean defeated() { return health == 0; }
+    public int health() {
+        return health;
+    }
 
-    int damage(Random random) { return random.nextInt(Math.min(255, weapon.damage + strength)); }
-    void loseThrownDagger() { weapon = Weapon.HANDS; }
+    public int maximumHealth() {
+        return maximumHealth;
+    }
+
+    public int experience() {
+        return experience;
+    }
+
+    public int defense() {
+        return defense;
+    }
+
+    public int attackBonus() {
+        return dexterity >= 40 ? 255 : dexterity;
+    }
+
+    public Weapon weapon() {
+        return weapon;
+    }
+
+    public boolean defeated() {
+        return health == 0;
+    }
+
+    int damage(Random random) {
+        return random.nextInt(Math.min(255, weapon.damage + strength));
+    }
+    void loseThrownDagger() {
+        weapon = Weapon.HANDS;
+    }
     void hurt(int damage) {
-        if (damage < 0) throw new IllegalArgumentException("Negative damage");
+        if (damage < 0) {
+            throw new IllegalArgumentException("Negative damage");
+        }
         health = Math.max(0, health - damage);
     }
     void awardExperience(int amount) {
-        if (amount < 0) throw new IllegalArgumentException("Negative experience");
+        if (amount < 0) {
+            throw new IllegalArgumentException("Negative experience");
+        }
         experience = (int) Math.min(9999L, (long) experience + amount);
     }
 }
