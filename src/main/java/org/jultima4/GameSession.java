@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 /** Exploration state; town data and graphics remain immutable. */
 public final class GameSession {
@@ -62,6 +63,115 @@ public final class GameSession {
     if (!DosMap.walkable(data.world().tile(this.x, this.y))) {
       throw new IllegalArgumentException("Starting position is not walkable");
     }
+  }
+
+  record State(
+      int x,
+      int y,
+      int worldX,
+      int worldY,
+      String townKey,
+      int turns,
+      Avatar.State avatar,
+      Map<String, Map<Integer, Integer>> changedTiles,
+      Set<Virtue> shrines,
+      OverworldMonsters.State monsters) {
+    State {
+      Map<String, Map<Integer, Integer>> copy = new HashMap<>();
+      changedTiles.forEach((key, tiles) -> copy.put(key, Map.copyOf(tiles)));
+      changedTiles = Map.copyOf(copy);
+      shrines = Set.copyOf(shrines);
+    }
+  }
+
+  State snapshot() {
+    exploring();
+    if (talking()) {
+      throw new IllegalStateException("Finish the conversation before saving");
+    }
+    return new State(
+        x,
+        y,
+        worldX,
+        worldY,
+        townKey,
+        turns,
+        avatar.snapshot(),
+        changedTiles,
+        shrines,
+        monsters.snapshot());
+  }
+
+  static GameSession restore(DosGameData data, State state) throws IOException {
+    int size = state.townKey() == null ? 256 : 32;
+    if (state.x() < 0
+        || state.x() >= size
+        || state.y() < 0
+        || state.y() >= size
+        || state.worldX() < 0
+        || state.worldX() > 255
+        || state.worldY() < 0
+        || state.worldY() > 255
+        || state.turns() < 0
+        || state.monsters().turns() > state.turns()
+        || state.shrines().contains(Virtue.SPIRITUALITY)) {
+      throw new IllegalArgumentException("Invalid saved exploration state");
+    }
+    if (state.townKey() != null && !data.towns().containsKey(state.townKey())) {
+      throw new IllegalArgumentException("Unknown saved town");
+    }
+    GameSession session =
+        new GameSession(
+            data,
+            state.townKey() == null ? state.x() : state.worldX(),
+            state.townKey() == null ? state.y() : state.worldY(),
+            Avatar.restore(state.avatar()),
+            CombatMap.load(),
+            new Random());
+    for (var town : state.changedTiles().entrySet()) {
+      DosTown original = data.towns().get(town.getKey());
+      if (original == null) {
+        throw new IllegalArgumentException("Unknown town in opened doors");
+      }
+      for (var tile : town.getValue().entrySet()) {
+        int index = tile.getKey();
+        if (index < 0
+            || index >= 1024
+            || tile.getValue() != 22
+            || original.map().tile(index % 32, index / 32) != 59) {
+          throw new IllegalArgumentException("Invalid saved opened door");
+        }
+      }
+      session.changedTiles.put(town.getKey(), new HashMap<>(town.getValue()));
+    }
+    session.x = state.x();
+    session.y = state.y();
+    session.worldX = state.worldX();
+    session.worldY = state.worldY();
+    session.townKey = state.townKey();
+    session.turns = state.turns();
+    session.shrines.addAll(state.shrines());
+    session.monsters.restore(state.monsters(), data.world());
+    if (session.inTown()) {
+      String portal = state.townKey().equals("LCB_2") ? "LCB_1" : state.townKey();
+      DosGameData.Location location =
+          DosGameData.LOCATIONS.stream()
+              .filter(candidate -> candidate.file().equals(portal))
+              .findFirst()
+              .orElseThrow(() -> new IllegalArgumentException("Unknown town entrance"));
+      if (state.worldX() != location.x() || state.worldY() != location.y()) {
+        throw new IllegalArgumentException("Invalid saved town exit");
+      }
+      session.locationName =
+          state.townKey().equals("LCB_2") ? "Castle Britannia - upper floor" : location.name();
+    }
+    if (!DosMap.walkable(session.groundTile(session.x, session.y))
+        || session.npcAt(session.x, session.y) != null
+        || (!session.inTown() && session.monsters.at(session.x, session.y) != null)) {
+      throw new IllegalArgumentException("Saved position is blocked");
+    }
+    session.message = "Quest restored.";
+    return session;
   }
 
   public void move(int dx, int dy) {

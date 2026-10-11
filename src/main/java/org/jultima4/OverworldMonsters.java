@@ -3,6 +3,7 @@ package org.jultima4;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -22,6 +23,43 @@ public final class OverworldMonsters {
 
   public List<Encounter> encounters() {
     return List.copyOf(encounters);
+  }
+
+  record State(int turns, int escapeGrace, List<Encounter> encounters) {
+    State {
+      encounters = List.copyOf(encounters);
+    }
+  }
+
+  State snapshot() {
+    return new State(turns, escapeGrace, encounters);
+  }
+
+  void restore(State state, DosMap map) {
+    if (state.turns() < 0
+        || state.escapeGrace() < 0
+        || state.escapeGrace() > 6
+        || state.encounters().size() > 8) {
+      throw new IllegalArgumentException("Invalid saved monster state");
+    }
+    var positions = new HashSet<Integer>();
+    for (Encounter encounter : state.encounters()) {
+      if (encounter.type() == null
+          || encounter.count() < 1
+          || encounter.count() > 2
+          || encounter.x() < 0
+          || encounter.x() > 255
+          || encounter.y() < 0
+          || encounter.y() > 255
+          || !land(map.tile(encounter.x(), encounter.y()))
+          || !positions.add(encounter.y() * 256 + encounter.x())) {
+        throw new IllegalArgumentException("Invalid saved monster encounter");
+      }
+    }
+    turns = state.turns();
+    escapeGrace = state.escapeGrace();
+    encounters.clear();
+    encounters.addAll(state.encounters());
   }
 
   public Encounter at(int x, int y) {
