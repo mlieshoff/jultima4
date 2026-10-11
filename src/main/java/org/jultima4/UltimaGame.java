@@ -401,7 +401,13 @@ public final class UltimaGame extends ApplicationAdapter {
     List<Integer> scene = titleScene.tiles(titleSceneSeconds);
     for (int row = 0; row < TitleScene.HEIGHT; row++) {
       for (int col = 0; col < TitleScene.WIDTH; col++) {
-        drawTile(scene.get(row * TitleScene.WIDTH + col), 44 + col * 48, 370 - row * 48, 48);
+        int tile = scene.get(row * TitleScene.WIDTH + col);
+        // Actor variants are already selected by the original script; only water scrolls.
+        TextureRegion region =
+            tile <= 2
+                ? scrollingTiles[tile * 16 + TileAnimation.scrollOffset(titleSceneSeconds)]
+                : tiles[tile];
+        batch.draw(region, 44 + col * 48, 370 - row * 48, 48, 48);
       }
     }
     font.setColor(Color.GOLD);
