@@ -72,6 +72,20 @@ the Pull Request is marked ready for human review.
 
 Significant architectural changes require explicit human approval.
 
+## Code Formatting
+
+All Java source files MUST be formatted using google-java-format.
+
+The mandatory formatting rules are defined in:
+
+`.ai/standards/formatting.md`
+
+The Development Team MUST format all created or modified Java files before committing.
+
+The QA agent MUST verify formatting compliance before Pull Request creation.
+
+Do not reformat unrelated files or modify files outside the project workspace.
+
 ## Documentation Standards
 
 All AI roles MUST follow the documentation rules defined in:
