@@ -14,6 +14,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
@@ -33,6 +34,8 @@ public final class UltimaGame extends ApplicationAdapter {
   private CharacterScreens screens;
   private Avatar selectedAvatar;
   private LordBritishSignature signature;
+  private TitleScene titleScene;
+  private double titleSceneSeconds;
   private Texture penPixel;
   private final Texture[] frontPictures = new Texture[3];
   private GameSession world;
@@ -80,6 +83,11 @@ public final class UltimaGame extends ApplicationAdapter {
     createScrollingTiles();
     createFrontPictures();
     restart();
+    try {
+      titleScene = TitleScene.load();
+    } catch (IOException ex) {
+      throw new IllegalStateException("Cannot load title demonstration", ex);
+    }
     screens.intro();
     Gdx.input.setInputProcessor(
         new InputAdapter() {
@@ -267,11 +275,15 @@ public final class UltimaGame extends ApplicationAdapter {
       case TITLE -> {
         if (key == Input.Keys.ESCAPE) {
           Gdx.app.exit();
-        } else if (key == Input.Keys.N || key == Input.Keys.ENTER) {
+        } else if (key == Input.Keys.B || key == Input.Keys.N || key == Input.Keys.ENTER) {
           screens.start();
-        } else if (key == Input.Keys.L || key == Input.Keys.F9) {
+        } else if (key == Input.Keys.J || key == Input.Keys.L || key == Input.Keys.F9) {
           loadQuest();
+        } else if (key == Input.Keys.R) {
+          titleSceneSeconds = 0;
+          saveMessage = null;
         } else if (key == Input.Keys.I) {
+          titleSceneSeconds = 0;
           screens.intro();
         } else {
           return false;
@@ -361,10 +373,11 @@ public final class UltimaGame extends ApplicationAdapter {
       renderIntro(stage);
       return;
     }
-    int background =
-        stage == CharacterScreens.Stage.TITLE
-            ? 0
-            : stage == CharacterScreens.Stage.CREATION ? 1 : 2;
+    if (stage == CharacterScreens.Stage.TITLE) {
+      renderTitle();
+      return;
+    }
+    int background = stage == CharacterScreens.Stage.CREATION ? 1 : 2;
     batch.setColor(Color.WHITE);
     batch.draw(frontPictures[background], 20, 100, 960, 600);
     font.setColor(Color.GOLD);
@@ -377,12 +390,27 @@ public final class UltimaGame extends ApplicationAdapter {
   }
 
   private void renderTitle() {
-    font.draw(batch, "Begin a new quest", 44, 350, 912, 1, false);
+    batch.setColor(Color.WHITE);
     font.setColor(Color.WHITE);
-    font.draw(batch, "N / Enter - Create a character", 44, 295, 912, 1, false);
-    font.draw(batch, "Esc - Quit", 44, 240, 912, 1, false);
-    text("I replay intro | N / Enter new quest | L continue | Esc quit", 24, 50);
-    if (saveMessage != null) font.draw(batch, saveMessage, 24, 100, 950, -1, true);
+    for (int i = 0; i < TitleScene.CREDITS.size(); i++) {
+      font.draw(batch, TitleScene.CREDITS.get(i), 0, 695 - i * 24, 1000, 1, false);
+    }
+    // Keep the original logo, excluding the bitmap's incomplete/reordered credits.
+    TextureRegion logo = new TextureRegion(frontPictures[0], 0, 32, 320, 62);
+    batch.draw(logo, 20, 418, 960, 186);
+    List<Integer> scene = titleScene.tiles(titleSceneSeconds);
+    for (int row = 0; row < TitleScene.HEIGHT; row++) {
+      for (int col = 0; col < TitleScene.WIDTH; col++) {
+        drawTile(scene.get(row * TitleScene.WIDTH + col), 44 + col * 48, 370 - row * 48, 48);
+      }
+    }
+    font.setColor(Color.GOLD);
+    for (int i = 0; i < TitleScene.MENU.size(); i++) {
+      font.draw(batch, TitleScene.MENU.get(i), 0, 160 - i * 30, 1000, 1, false);
+    }
+    font.setColor(Color.WHITE);
+    text("N/Enter new quest | L/F9 continue | I replay intro | Esc quit", 24, 35);
+    if (saveMessage != null) font.draw(batch, saveMessage, 24, 70, 950, -1, true);
   }
 
   private void renderCharacterChoices() {
@@ -506,6 +534,7 @@ public final class UltimaGame extends ApplicationAdapter {
     float delta = Math.max(0, Gdx.graphics.getDeltaTime());
     animationSeconds += delta;
     screens.update(delta);
+    if (screens.stage() == CharacterScreens.Stage.TITLE) titleSceneSeconds += delta;
     if (!characterStats.isOpen()) combatAnimation.update(delta);
     ScreenUtils.clear(0.025f, 0.035f, 0.055f, 1);
     viewport.apply();
